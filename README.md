@@ -20,6 +20,8 @@ OpenTargets: https://blog.opentargets.org/api-getting-started-1/
 
 OpenFDA: https://open.fda.gov/api/reference/
 
+BioGRID: https://wiki.thebiogrid.org/doku.php/biogridrest
+
 ### Usage
 
 TractaViewer is capable of accepting lists of targets in the form of HGNC names, Ensembl IDs, UniProt IDs, or any combination of those 3. Choose an Excel or CSV file with this information and TractaViewer will automatically pick out the appropriate columns, provided that their column headers are one of "HGNC Name", "Ensembl ID", or "UniProt ID". TractaViewer can recognise some slight variations on these headers. 
