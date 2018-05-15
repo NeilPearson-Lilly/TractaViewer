@@ -1,0 +1,827 @@
+
+<!DOCTYPE html>
+<HTML>
+<HEAD>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/LaTeX", "output/HTML-CSS"],
+    "HTML-CSS": { availableFonts: ["TeX"] }
+    });
+</script>
+
+<script type="text/javascript"
+    src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<style>
+
+@font-face {
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Raleway Light'), local('Raleway-Light'), url(http://fonts.gstatic.com/s/raleway/v9/-_Ctzj9b56b8RgXW8FArifk_vArhqVIZ0nv9q090hN8.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Raleway'), url(http://fonts.gstatic.com/s/raleway/v9/0dTEPzkLWceF7z0koJaX1A.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 600;
+  src: local('Raleway SemiBold'), local('Raleway-SemiBold'), url(http://fonts.gstatic.com/s/raleway/v9/xkvoNo9fC8O2RDydKj12b_k_vArhqVIZ0nv9q090hN8.woff2) format('woff2');
+}
+html {
+  font-family: sans-serif; /* 1 */
+  -ms-text-size-adjust: 100%; /* 2 */
+  -webkit-text-size-adjust: 100%; /* 2 */
+}
+body {
+  margin: 0;
+}
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+hgroup,
+main,
+menu,
+nav,
+section,
+summary {
+  display: block;
+}
+audio,
+canvas,
+progress,
+video {
+  display: inline-block; /* 1 */
+  vertical-align: baseline; /* 2 */
+}
+audio:not([controls]) {
+  display: none;
+  height: 0;
+}
+[hidden],
+template {
+  display: none;
+}
+a:active,
+a:hover {
+  outline: 0;
+}
+abbr[title] {
+  border-bottom: 1px dotted;
+}
+b,
+strong {
+  font-weight: bold;
+}
+dfn {
+  font-style: italic;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+mark {
+  background: #ff0;
+  color: #000;
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sup {
+  top: -0.5em;
+}
+sub {
+  bottom: -0.25em;
+}
+img {
+  border: 0;
+}
+svg:not(:root) {
+  overflow: hidden;
+}
+figure {
+  margin: 1em 40px;
+}
+hr {
+  -moz-box-sizing: content-box;
+  box-sizing: content-box;
+  height: 0;
+}
+pre {
+  overflow: auto;
+}
+code,
+kbd,
+pre,
+samp {
+  font-family: monospace, monospace;
+  font-size: 1em;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  color: inherit; /* 1 */
+  font: inherit; /* 2 */
+  margin: 0; /* 3 */
+}
+button {
+  overflow: visible;
+}
+button,
+select {
+  text-transform: none;
+}
+button,
+html input[type="button"], /* 1 */
+input[type="reset"],
+input[type="submit"] {
+  -webkit-appearance: button; /* 2 */
+  cursor: pointer; /* 3 */
+}
+button[disabled],
+html input[disabled] {
+  cursor: default;
+}
+button::-moz-focus-inner,
+input::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+input {
+  line-height: normal;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  box-sizing: border-box; /* 1 */
+  padding: 0; /* 2 */
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  height: auto;
+}
+input[type="search"] {
+  -webkit-appearance: textfield; /* 1 */
+  -moz-box-sizing: content-box;
+  -webkit-box-sizing: content-box; /* 2 */
+  box-sizing: content-box;
+}
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+fieldset {
+  border: 1px solid #c0c0c0;
+  margin: 0 2px;
+  padding: 0.35em 0.625em 0.75em;
+}
+legend {
+  border: 0; /* 1 */
+  padding: 0; /* 2 */
+}
+textarea {
+  overflow: auto;
+}
+optgroup {
+  font-weight: bold;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+td,
+th {
+  padding: 0;
+}
+
+
+/*
+* Skeleton V2.0.4
+* Copyright 2014, Dave Gamache
+* www.getskeleton.com
+* Free to use under the MIT license.
+* http://www.opensource.org/licenses/mit-license.php
+* 12/29/2014
+*/
+.container {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box; }
+.column,
+.columns {
+  width: 100%;
+  float: left;
+  box-sizing: border-box; }
+@media (min-width: 400px) {
+  .container {
+    width: 85%;
+    padding: 0; }
+}
+@media (min-width: 550px) {
+  .container {
+    width: 80%; }
+  .column,
+  .columns {
+    margin-left: 4%; }
+  .column:first-child,
+  .columns:first-child {
+    margin-left: 0; }
+
+  .one.column,
+  .one.columns                    { width: 4.66666666667%; }
+  .two.columns                    { width: 13.3333333333%; }
+  .three.columns                  { width: 22%;            }
+  .four.columns                   { width: 30.6666666667%; }
+  .five.columns                   { width: 39.3333333333%; }
+  .six.columns                    { width: 48%;            }
+  .seven.columns                  { width: 56.6666666667%; }
+  .eight.columns                  { width: 65.3333333333%; }
+  .nine.columns                   { width: 74.0%;          }
+  .ten.columns                    { width: 82.6666666667%; }
+  .eleven.columns                 { width: 91.3333333333%; }
+  .twelve.columns                 { width: 100%; margin-left: 0; }
+
+  .one-third.column               { width: 30.6666666667%; }
+  .two-thirds.column              { width: 65.3333333333%; }
+
+  .one-half.column                { width: 48%; }
+
+  /* Offsets */
+  .offset-by-one.column,
+  .offset-by-one.columns          { margin-left: 8.66666666667%; }
+  .offset-by-two.column,
+  .offset-by-two.columns          { margin-left: 17.3333333333%; }
+  .offset-by-three.column,
+  .offset-by-three.columns        { margin-left: 26%;            }
+  .offset-by-four.column,
+  .offset-by-four.columns         { margin-left: 34.6666666667%; }
+  .offset-by-five.column,
+  .offset-by-five.columns         { margin-left: 43.3333333333%; }
+  .offset-by-six.column,
+  .offset-by-six.columns          { margin-left: 52%;            }
+  .offset-by-seven.column,
+  .offset-by-seven.columns        { margin-left: 60.6666666667%; }
+  .offset-by-eight.column,
+  .offset-by-eight.columns        { margin-left: 69.3333333333%; }
+  .offset-by-nine.column,
+  .offset-by-nine.columns         { margin-left: 78.0%;          }
+  .offset-by-ten.column,
+  .offset-by-ten.columns          { margin-left: 86.6666666667%; }
+  .offset-by-eleven.column,
+  .offset-by-eleven.columns       { margin-left: 95.3333333333%; }
+
+  .offset-by-one-third.column,
+  .offset-by-one-third.columns    { margin-left: 34.6666666667%; }
+  .offset-by-two-thirds.column,
+  .offset-by-two-thirds.columns   { margin-left: 69.3333333333%; }
+
+  .offset-by-one-half.column,
+  .offset-by-one-half.columns     { margin-left: 52%; }
+
+}
+html {
+  font-size: 62.5%; }
+body {
+  font-size: 1.5em; /* currently ems cause chrome bug misinterpreting rems on body element */
+  line-height: 1.6;
+  font-weight: 400;
+  font-family: "Raleway", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #222; }
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  margin-bottom: 2rem;
+  font-weight: 300; }
+h1 { font-size: 3.6rem; line-height: 1.2;  letter-spacing: -.1rem;}
+h2 { font-size: 3.4rem; line-height: 1.25; letter-spacing: -.1rem; }
+h3 { font-size: 3.2rem; line-height: 1.3;  letter-spacing: -.1rem; }
+h4 { font-size: 2.8rem; line-height: 1.35; letter-spacing: -.08rem; }
+h5 { font-size: 2.4rem; line-height: 1.5;  letter-spacing: -.05rem; }
+h6 { font-size: 1.5rem; line-height: 1.6;  letter-spacing: 0; }
+
+p {
+  margin-top: 0; }
+a {
+  color: #1EAEDB; }
+a:hover {
+  color: #0FA0CE; }
+.button,
+button,
+input[type="submit"],
+input[type="reset"],
+input[type="button"] {
+  display: inline-block;
+  height: 38px;
+  padding: 0 30px;
+  color: #555;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 38px;
+  letter-spacing: .1rem;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  background-color: transparent;
+  border-radius: 4px;
+  border: 1px solid #bbb;
+  cursor: pointer;
+  box-sizing: border-box; }
+.button:hover,
+button:hover,
+input[type="submit"]:hover,
+input[type="reset"]:hover,
+input[type="button"]:hover,
+.button:focus,
+button:focus,
+input[type="submit"]:focus,
+input[type="reset"]:focus,
+input[type="button"]:focus {
+  color: #333;
+  border-color: #888;
+  outline: 0; }
+.button.button-primary,
+button.button-primary,
+input[type="submit"].button-primary,
+input[type="reset"].button-primary,
+input[type="button"].button-primary {
+  color: #FFF;
+  background-color: #33C3F0;
+  border-color: #33C3F0; }
+.button.button-primary:hover,
+button.button-primary:hover,
+input[type="submit"].button-primary:hover,
+input[type="reset"].button-primary:hover,
+input[type="button"].button-primary:hover,
+.button.button-primary:focus,
+button.button-primary:focus,
+input[type="submit"].button-primary:focus,
+input[type="reset"].button-primary:focus,
+input[type="button"].button-primary:focus {
+  color: #FFF;
+  background-color: #1EAEDB;
+  border-color: #1EAEDB; }
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="text"],
+input[type="tel"],
+input[type="url"],
+input[type="password"],
+textarea,
+select {
+  height: 38px;
+  padding: 6px 10px; /* The 6px vertically centers text on FF, ignored by Webkit */
+  background-color: #fff;
+  border: 1px solid #D1D1D1;
+  border-radius: 4px;
+  box-shadow: none;
+  box-sizing: border-box; }
+/* Removes awkward default styles on some inputs for iOS */
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="text"],
+input[type="tel"],
+input[type="url"],
+input[type="password"],
+textarea {
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none; }
+textarea {
+  min-height: 65px;
+  padding-top: 6px;
+  padding-bottom: 6px; }
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="text"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border: 1px solid #33C3F0;
+  outline: 0; }
+label,
+legend {
+  display: block;
+  margin-bottom: .5rem;
+  font-weight: 600; }
+fieldset {
+  padding: 0;
+  border-width: 0; }
+input[type="checkbox"],
+input[type="radio"] {
+  display: inline; }
+label > .label-body {
+  display: inline-block;
+  margin-left: .5rem;
+  font-weight: normal; }
+ul {
+  list-style: circle inside; }
+ol {
+  list-style: decimal inside; }
+ol, ul {
+  padding-left: 0;
+  margin-top: 0; }
+ul ul,
+ul ol,
+ol ol,
+ol ul {
+  margin: 1.5rem 0 1.5rem 3rem;
+  font-size: 90%; }
+li {
+  margin-bottom: 1rem; }
+th,
+td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #E1E1E1; }
+th:first-child,
+td:first-child {
+  padding-left: 0; }
+th:last-child,
+td:last-child {
+  padding-right: 0; }
+button,
+.button {
+  margin-bottom: 1rem; }
+input,
+textarea,
+select,
+fieldset {
+  margin-bottom: 1.5rem; }
+pre,
+blockquote,
+dl,
+figure,
+table,
+p,
+ul,
+ol,
+form {
+  margin-bottom: 2.5rem; }
+.u-full-width {
+  width: 100%;
+  box-sizing: border-box; }
+.u-max-full-width {
+  max-width: 100%;
+  box-sizing: border-box; }
+.u-pull-right {
+  float: right; }
+.u-pull-left {
+  float: left; }
+hr {
+  margin-top: 3rem;
+  margin-bottom: 3.5rem;
+  border-width: 0;
+  border-top: 1px solid #E1E1E1; }
+.container:after,
+.row:after,
+.u-cf {
+  content: "";
+  display: table;
+  clear: both; }
+
+pre {
+  display: block;
+  padding: 9.5px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.42857143;
+  color: #333;
+  word-break: break-all;
+  word-wrap: break-word;
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+code,
+kbd,
+pre,
+samp {
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+code {
+  padding: 2px 4px;
+  font-size: 90%;
+  color: #c7254e;
+  background-color: #f9f2f4;
+  border-radius: 4px;
+}
+
+@media (min-width: 400px) {}
+@media (min-width: 550px) {}
+@media (min-width: 750px) {}
+@media (min-width: 1000px) {}
+@media (min-width: 1200px) {}
+
+</style>
+
+<style>
+.hll { background-color: #ffffcc }
+.c { color: #408080; font-style: italic } /* Comment */
+.err { border: 1px solid #FF0000 } /* Error */
+.k { color: #008000; font-weight: bold } /* Keyword */
+.o { color: #666666 } /* Operator */
+.ch { color: #408080; font-style: italic } /* Comment.Hashbang */
+.cm { color: #408080; font-style: italic } /* Comment.Multiline */
+.cp { color: #BC7A00 } /* Comment.Preproc */
+.cpf { color: #408080; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #408080; font-style: italic } /* Comment.Single */
+.cs { color: #408080; font-style: italic } /* Comment.Special */
+.gd { color: #A00000 } /* Generic.Deleted */
+.ge { font-style: italic } /* Generic.Emph */
+.gr { color: #FF0000 } /* Generic.Error */
+.gh { color: #000080; font-weight: bold } /* Generic.Heading */
+.gi { color: #00A000 } /* Generic.Inserted */
+.go { color: #888888 } /* Generic.Output */
+.gp { color: #000080; font-weight: bold } /* Generic.Prompt */
+.gs { font-weight: bold } /* Generic.Strong */
+.gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+.gt { color: #0044DD } /* Generic.Traceback */
+.kc { color: #008000; font-weight: bold } /* Keyword.Constant */
+.kd { color: #008000; font-weight: bold } /* Keyword.Declaration */
+.kn { color: #008000; font-weight: bold } /* Keyword.Namespace */
+.kp { color: #008000 } /* Keyword.Pseudo */
+.kr { color: #008000; font-weight: bold } /* Keyword.Reserved */
+.kt { color: #B00040 } /* Keyword.Type */
+.m { color: #666666 } /* Literal.Number */
+.s { color: #BA2121 } /* Literal.String */
+.na { color: #7D9029 } /* Name.Attribute */
+.nb { color: #008000 } /* Name.Builtin */
+.nc { color: #0000FF; font-weight: bold } /* Name.Class */
+.no { color: #880000 } /* Name.Constant */
+.nd { color: #AA22FF } /* Name.Decorator */
+.ni { color: #999999; font-weight: bold } /* Name.Entity */
+.ne { color: #D2413A; font-weight: bold } /* Name.Exception */
+.nf { color: #0000FF } /* Name.Function */
+.nl { color: #A0A000 } /* Name.Label */
+.nn { color: #0000FF; font-weight: bold } /* Name.Namespace */
+.nt { color: #008000; font-weight: bold } /* Name.Tag */
+.nv { color: #19177C } /* Name.Variable */
+.ow { color: #AA22FF; font-weight: bold } /* Operator.Word */
+.w { color: #bbbbbb } /* Text.Whitespace */
+.mb { color: #666666 } /* Literal.Number.Bin */
+.mf { color: #666666 } /* Literal.Number.Float */
+.mh { color: #666666 } /* Literal.Number.Hex */
+.mi { color: #666666 } /* Literal.Number.Integer */
+.mo { color: #666666 } /* Literal.Number.Oct */
+.sa { color: #BA2121 } /* Literal.String.Affix */
+.sb { color: #BA2121 } /* Literal.String.Backtick */
+.sc { color: #BA2121 } /* Literal.String.Char */
+.dl { color: #BA2121 } /* Literal.String.Delimiter */
+.sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #BA2121 } /* Literal.String.Double */
+.se { color: #BB6622; font-weight: bold } /* Literal.String.Escape */
+.sh { color: #BA2121 } /* Literal.String.Heredoc */
+.si { color: #BB6688; font-weight: bold } /* Literal.String.Interpol */
+.sx { color: #008000 } /* Literal.String.Other */
+.sr { color: #BB6688 } /* Literal.String.Regex */
+.s1 { color: #BA2121 } /* Literal.String.Single */
+.ss { color: #19177C } /* Literal.String.Symbol */
+.bp { color: #008000 } /* Name.Builtin.Pseudo */
+.fm { color: #0000FF } /* Name.Function.Magic */
+.vc { color: #19177C } /* Name.Variable.Class */
+.vg { color: #19177C } /* Name.Variable.Global */
+.vi { color: #19177C } /* Name.Variable.Instance */
+.vm { color: #19177C } /* Name.Variable.Magic */
+.il { color: #666666 } /* Literal.Number.Integer.Long */
+</style>
+
+
+
+
+
+<style>
+h1.title {margin-top : 20px}
+img {max-width : 100%}
+
+#From nbconvert
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-bold { font-weight: bold; }
+</style>
+
+</HEAD>
+<BODY>
+    <div class ="container">
+        <div class = "row">
+            <div class = "col-md-12 twelve columns">
+
+
+
+<link rel="stylesheet" href="https://cdn.pydata.org/bokeh/release/bokeh-0.12.4.min.css" type="text/css" />
+<link rel="stylesheet" href="https://cdn.pydata.org/bokeh/release/bokeh-widgets-0.12.4.min.css" type="text/css" />
+<script type="text/javascript" src="https://cdn.pydata.org/bokeh/release/bokeh-0.12.4.min.js"></script>
+<script type="text/javascript" src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-0.12.4.min.js"></script>
+<script type="text/javascript">
+    Bokeh.set_log_level("info");
+</script>
+<h1>CCDC85C: target tractability report</h1>
+<h3>Summary</h3>
+
+<p>HGNC Name: <a href="http://www.ensembl.org/id/ENSG00000205476">CCDC85C</a></p>
+<p>UniProt ID: <a href="http://www.uniprot.org/uniprot/A6NKD9">A6NKD9</a></p>
+<p>Functional class: Non-IDG</p>
+<h3>Expression</h3>
+<h5>Human whole body (GTEx)</h5>
+
+
+<script type="text/javascript">
+    (function() {
+  var fn = function() {
+    Bokeh.safely(function() {
+      var docs_json = {"a84004f7-67aa-4466-97a9-f817b3da8765":{"roots":{"references":[{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"6f7eec65-7456-4006-bc7a-8a621b2e5b0d","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"0b0ae340-f0a4-43b6-9f57-c5a60eae43b9","type":"Rect"},{"attributes":{"data_source":{"id":"2d43d0ac-7b5e-4ef8-942b-2271fdd83157","type":"ColumnDataSource"},"glyph":{"id":"af5b0ff2-122f-476c-a32d-c9ad97561f8d","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"22685722-766e-41eb-babd-c54026881864","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"76fb259c-50a0-4355-9aa8-d9cb101689a2","type":"ColumnDataSource"},"glyph":{"id":"11a9138c-a650-443c-92db-2b38c687b63b","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"e2e53da6-29ca-4042-94f1-29aaf4ce76e3","type":"GlyphRenderer"},{"attributes":{"dimension":1,"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"},"ticker":{"id":"3e39bdf8-7cf7-48b4-867d-059f99163675","type":"BasicTicker"}},"id":"ef01e7b5-1301-4a0f-93a4-99d77c303f13","type":"Grid"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"fd6b1136-d294-4fa5-9c7f-ea8908c9ffad","type":"Rect"},{"attributes":{"data_source":{"id":"f3a4e7e2-b800-482a-b8d1-480f6a3ff42f","type":"ColumnDataSource"},"glyph":{"id":"7f3827c2-625e-471e-8bb7-1cee82e8a987","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"33ae01ec-7222-4185-b38c-496c127abbd1","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"a5e2250c-55b1-455f-b145-64f9403f6be6","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Vagina"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[2.847],"label":[{"tissue":"Vagina"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Vagina"],"width":[0.8],"x":["Vagina"],"y":[1.4235]}},"id":"f3a4e7e2-b800-482a-b8d1-480f6a3ff42f","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"a449da9d-413a-4d4d-957f-1185f4cb1181","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Amygdala"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.548],"label":[{"tissue":"Brain - Amygdala"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Amygdala"],"width":[0.8],"x":["Brain - Amygdala"],"y":[2.274]}},"id":"0f3fe3ea-94ba-4c12-9e16-ea008448f84b","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"2e9dc361-0168-4893-b73c-13bd404e90ed","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"264a601a-527b-40c6-90ba-ed943a551f43","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Artery - Tibial"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.6435],"label":[{"tissue":"Artery - Tibial"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Artery - Tibial"],"width":[0.8],"x":["Artery - Tibial"],"y":[0.32175]}},"id":"35a25594-77b3-4d49-8082-cd888f231b6b","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"35a25594-77b3-4d49-8082-cd888f231b6b","type":"ColumnDataSource"},"glyph":{"id":"fd6b1136-d294-4fa5-9c7f-ea8908c9ffad","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"10d7fef5-2bd3-4830-bf4a-90dd6dfa157a","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Skin - Sun Exposed (Lower leg)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[6.045],"label":[{"tissue":"Skin - Sun Exposed (Lower leg)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Skin - Sun Exposed (Lower leg)"],"width":[0.8],"x":["Skin - Sun Exposed (Lower leg)"],"y":[3.0225]}},"id":"0c883c17-81b3-46ea-90a6-c288bd29dd2a","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"0c883c17-81b3-46ea-90a6-c288bd29dd2a","type":"ColumnDataSource"},"glyph":{"id":"6f7eec65-7456-4006-bc7a-8a621b2e5b0d","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"45f19d62-d635-4852-b1e8-6a3e92f2aead","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"0f3fe3ea-94ba-4c12-9e16-ea008448f84b","type":"ColumnDataSource"},"glyph":{"id":"264a601a-527b-40c6-90ba-ed943a551f43","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"1539abef-cb64-4d3b-8294-349e0b3fff6f","type":"GlyphRenderer"},{"attributes":{},"id":"dc090468-cd84-4bf9-9a97-5d185235a79c","type":"CategoricalTicker"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Stomach"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.3820000000000014],"label":[{"tissue":"Stomach"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Stomach"],"width":[0.8],"x":["Stomach"],"y":[2.6910000000000007]}},"id":"02ccbd9d-255e-4ee0-ad06-7fa3d6112a57","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Whole Blood"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.1308],"label":[{"tissue":"Whole Blood"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Whole Blood"],"width":[0.8],"x":["Whole Blood"],"y":[0.0654]}},"id":"86d283fe-af44-4823-b7f9-ba99475f31e7","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"86d283fe-af44-4823-b7f9-ba99475f31e7","type":"ColumnDataSource"},"glyph":{"id":"0b0ae340-f0a4-43b6-9f57-c5a60eae43b9","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"61c1fd71-452e-4b83-9b6c-85273bc4d5ee","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Frontal Cortex (BA9)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.42],"label":[{"tissue":"Brain - Frontal Cortex (BA9)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Frontal Cortex (BA9)"],"width":[0.8],"x":["Brain - Frontal Cortex (BA9)"],"y":[2.21]}},"id":"c51dba72-c6d8-4058-94d6-de3d4ae757bb","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"41274639-a721-4cf9-9a4c-2bad9012032c","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Small Intestine - Terminal Ileum"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.629],"label":[{"tissue":"Small Intestine - Terminal Ileum"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Small Intestine - Terminal Ileum"],"width":[0.8],"x":["Small Intestine - Terminal Ileum"],"y":[2.8145]}},"id":"a9691a79-e3b0-4bbd-9a6e-2d1c69ec8ef6","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"a9691a79-e3b0-4bbd-9a6e-2d1c69ec8ef6","type":"ColumnDataSource"},"glyph":{"id":"2e9dc361-0168-4893-b73c-13bd404e90ed","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"50102e25-f7c4-467a-9a2d-5cb66110f3f7","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f52652d7-ca3c-4484-875d-56a05a71f403","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Testis"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.056],"label":[{"tissue":"Testis"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Testis"],"width":[0.8],"x":["Testis"],"y":[2.028]}},"id":"fc2f6724-fb98-459d-b55a-cf23187d8ded","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Anterior cingulate cortex (BA24)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.967000000000001],"label":[{"tissue":"Brain - Anterior cingulate cortex (BA24)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Anterior cingulate cortex (BA24)"],"width":[0.8],"x":["Brain - Anterior cingulate cortex (BA24)"],"y":[2.9835000000000007]}},"id":"ea0aa06b-f80a-4806-b8a0-16ba565ea19d","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"ea0aa06b-f80a-4806-b8a0-16ba565ea19d","type":"ColumnDataSource"},"glyph":{"id":"a449da9d-413a-4d4d-957f-1185f4cb1181","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"10a3d891-47a3-47f4-9265-0f9072b12022","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"02ccbd9d-255e-4ee0-ad06-7fa3d6112a57","type":"ColumnDataSource"},"glyph":{"id":"41274639-a721-4cf9-9a4c-2bad9012032c","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"5c0916a8-302a-484b-a4fa-b233741836c3","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"c51dba72-c6d8-4058-94d6-de3d4ae757bb","type":"ColumnDataSource"},"glyph":{"id":"755e497a-2115-42e7-be5e-a60db2233ef1","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"4fa855de-161d-41cf-b319-0a3d60305639","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f3a36549-d6eb-4ca9-b0ce-9825bb86dffd","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"75d73b09-1628-42ec-b172-534080dc73aa","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"755e497a-2115-42e7-be5e-a60db2233ef1","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Cerebellum"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[22.78],"label":[{"tissue":"Brain - Cerebellum"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Cerebellum"],"width":[0.8],"x":["Brain - Cerebellum"],"y":[11.39]}},"id":"ffbbe8fe-253e-4ccc-a04f-7b320c7d3d48","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Uterus"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.845],"label":[{"tissue":"Uterus"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Uterus"],"width":[0.8],"x":["Uterus"],"y":[2.4225]}},"id":"5bd64973-0fc3-46e8-948c-b5924098de0a","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"fc2f6724-fb98-459d-b55a-cf23187d8ded","type":"ColumnDataSource"},"glyph":{"id":"a5e2250c-55b1-455f-b145-64f9403f6be6","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"1095778e-d68d-4b6a-9b74-c8d7cba67bcc","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Caudate (basal ganglia)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.862],"label":[{"tissue":"Brain - Caudate (basal ganglia)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Caudate (basal ganglia)"],"width":[0.8],"x":["Brain - Caudate (basal ganglia)"],"y":[2.931]}},"id":"bb8156b9-5c17-489f-a92c-48c440c07ec8","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"bb8156b9-5c17-489f-a92c-48c440c07ec8","type":"ColumnDataSource"},"glyph":{"id":"f52652d7-ca3c-4484-875d-56a05a71f403","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"2cc0942a-f76e-44b9-a15c-1e9ca5eef5fd","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Thyroid"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[2.948],"label":[{"tissue":"Thyroid"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Thyroid"],"width":[0.8],"x":["Thyroid"],"y":[1.474]}},"id":"9f82b8e1-61a2-4e77-a6e1-b5c12c72c11f","type":"ColumnDataSource"},{"attributes":{"axis_label":"Tissue","formatter":{"id":"73f331cd-f1ac-413c-b062-28d7459bc4d2","type":"CategoricalTickFormatter"},"major_label_orientation":0.7853981633974483,"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"},"ticker":{"id":"dc090468-cd84-4bf9-9a97-5d185235a79c","type":"CategoricalTicker"}},"id":"8fa7e9ec-82a1-4420-b82a-7ec96418142b","type":"CategoricalAxis"},{"attributes":{"data_source":{"id":"ffbbe8fe-253e-4ccc-a04f-7b320c7d3d48","type":"ColumnDataSource"},"glyph":{"id":"d427007d-3fe9-42b6-9b0d-52e03c764164","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"f4b3f9c3-b4ce-4b1d-a5d5-4a73dbbd9fb3","type":"GlyphRenderer"},{"attributes":{},"id":"3e39bdf8-7cf7-48b4-867d-059f99163675","type":"BasicTicker"},{"attributes":{},"id":"73f331cd-f1ac-413c-b062-28d7459bc4d2","type":"CategoricalTickFormatter"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"d427007d-3fe9-42b6-9b0d-52e03c764164","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"c2e0e4b3-0a97-45e3-befd-a1fa3619294f","type":"Rect"},{"attributes":{},"id":"f3b52221-780a-4d51-8d96-99d573c040a4","type":"BasicTickFormatter"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"0814fc51-7599-4973-a2df-0e7070cf0d49","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"7f3827c2-625e-471e-8bb7-1cee82e8a987","type":"Rect"},{"attributes":{"data_source":{"id":"9f82b8e1-61a2-4e77-a6e1-b5c12c72c11f","type":"ColumnDataSource"},"glyph":{"id":"75d73b09-1628-42ec-b172-534080dc73aa","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"46a5c114-3cef-4db9-babd-5cdd1ed6617d","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Cerebellar Hemisphere"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[20.95],"label":[{"tissue":"Brain - Cerebellar Hemisphere"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Cerebellar Hemisphere"],"width":[0.8],"x":["Brain - Cerebellar Hemisphere"],"y":[10.475]}},"id":"d8e2d074-1206-4e47-87a1-7b39bd5aa1cc","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"d8e2d074-1206-4e47-87a1-7b39bd5aa1cc","type":"ColumnDataSource"},"glyph":{"id":"f3a36549-d6eb-4ca9-b0ce-9825bb86dffd","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"dab2c33d-2e4e-4b7b-bb63-b655271d3631","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"5bd64973-0fc3-46e8-948c-b5924098de0a","type":"ColumnDataSource"},"glyph":{"id":"c2e0e4b3-0a97-45e3-befd-a1fa3619294f","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"bc833021-2cbf-4ede-ba06-68737aca7517","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"78fad65c-10b4-42b8-9ecd-e067a6bb4541","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"ed4c4c6b-501b-4400-a103-e12e7e42921e","type":"Rect"},{"attributes":{"bottom_units":"screen","fill_alpha":{"value":0.5},"fill_color":{"value":"lightgrey"},"left_units":"screen","level":"overlay","line_alpha":{"value":1.0},"line_color":{"value":"black"},"line_dash":[4,4],"line_width":{"value":2},"plot":null,"render_mode":"css","right_units":"screen","top_units":"screen"},"id":"ae72a60d-d9b7-497a-ac1e-22554852c01f","type":"BoxAnnotation"},{"attributes":{"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"}},"id":"031f23ad-c31a-462e-b909-ea99ca7a1220","type":"PanTool"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"6013280c-a50f-46d6-9adb-96631fa2a450","type":"Rect"},{"attributes":{"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"}},"id":"476dfe20-a9a2-46ed-8b33-3f8b24848c07","type":"WheelZoomTool"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"e9657b98-ba00-40a9-9842-b242e1998853","type":"Rect"},{"attributes":{"overlay":{"id":"ae72a60d-d9b7-497a-ac1e-22554852c01f","type":"BoxAnnotation"},"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"}},"id":"50333615-04cc-434b-9c40-5bec4ef46ae4","type":"BoxZoomTool"},{"attributes":{"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"}},"id":"c8818df7-6dfa-45db-90ca-6bd1a762a7e7","type":"SaveTool"},{"attributes":{"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"}},"id":"01251c25-2b58-4ace-9313-eabe7bda7901","type":"ResetTool"},{"attributes":{"data_source":{"id":"5fea8f90-5ac8-422e-a6b7-d3420c9688ba","type":"ColumnDataSource"},"glyph":{"id":"d8a30a4b-761a-4d84-984a-999372712698","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"bd44d8b6-830c-415a-ad25-26914f96b939","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"53da733c-f6bd-4a48-b249-eaeafdc675de","type":"ColumnDataSource"},"glyph":{"id":"fc6f32c6-9c85-426c-a012-bc725734edb9","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"4c56cb93-71ac-48f5-820e-ee110d1f8f2d","type":"GlyphRenderer"},{"attributes":{"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"}},"id":"a4f0abcd-f310-4719-a8d3-23fa46d1fbc7","type":"HelpTool"},{"attributes":{"axis_label":"Sum( Expression )","formatter":{"id":"f3b52221-780a-4d51-8d96-99d573c040a4","type":"BasicTickFormatter"},"plot":{"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"},"ticker":{"id":"3e39bdf8-7cf7-48b4-867d-059f99163675","type":"BasicTicker"}},"id":"4e564d3a-29c8-4079-9976-0151d46ad636","type":"LinearAxis"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Esophagus - Mucosa"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[7.564],"label":[{"tissue":"Esophagus - Mucosa"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Esophagus - Mucosa"],"width":[0.8],"x":["Esophagus - Mucosa"],"y":[3.782]}},"id":"7a8baf3f-fe8b-41e2-81a8-85c2abae07d7","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"7a8baf3f-fe8b-41e2-81a8-85c2abae07d7","type":"ColumnDataSource"},"glyph":{"id":"ed4c4c6b-501b-4400-a103-e12e7e42921e","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"7840ce21-7cac-42d6-81f7-cdf3560bcd7d","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"d8a30a4b-761a-4d84-984a-999372712698","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Bladder"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.215],"label":[{"tissue":"Bladder"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Bladder"],"width":[0.8],"x":["Bladder"],"y":[2.1075]}},"id":"fc33908a-8906-4b87-ae79-4005b98c4113","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"9a4ef5d0-7a94-4781-a937-e098fd13d3e4","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"ba15689f-5491-431e-88db-ec2ba64a0495","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Cells - EBV-transformed lymphocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.2415],"label":[{"tissue":"Cells - EBV-transformed lymphocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Cells - EBV-transformed lymphocytes"],"width":[0.8],"x":["Cells - EBV-transformed lymphocytes"],"y":[0.12075]}},"id":"d5c278e8-f1f3-4526-b443-66073b7de463","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"d5c278e8-f1f3-4526-b443-66073b7de463","type":"ColumnDataSource"},"glyph":{"id":"6013280c-a50f-46d6-9adb-96631fa2a450","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"d3e302fe-5cac-4ca7-983b-9adae1993fc4","type":"GlyphRenderer"},{"attributes":{"plot":null,"text":"Expression by tissue"},"id":"6185dabd-b721-4e63-9e4b-52e921b5bf21","type":"Title"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Cervix - Ectocervix"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.883],"label":[{"tissue":"Cervix - Ectocervix"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Cervix - Ectocervix"],"width":[0.8],"x":["Cervix - Ectocervix"],"y":[0.9415]}},"id":"ff3ac7b9-f385-44e9-ab18-230dd743cdb4","type":"ColumnDataSource"},{"attributes":{"active_drag":"auto","active_scroll":"auto","active_tap":"auto","tools":[{"id":"031f23ad-c31a-462e-b909-ea99ca7a1220","type":"PanTool"},{"id":"476dfe20-a9a2-46ed-8b33-3f8b24848c07","type":"WheelZoomTool"},{"id":"50333615-04cc-434b-9c40-5bec4ef46ae4","type":"BoxZoomTool"},{"id":"c8818df7-6dfa-45db-90ca-6bd1a762a7e7","type":"SaveTool"},{"id":"01251c25-2b58-4ace-9313-eabe7bda7901","type":"ResetTool"},{"id":"a4f0abcd-f310-4719-a8d3-23fa46d1fbc7","type":"HelpTool"}]},"id":"2ed66ad2-3405-4102-8ef9-0e3e6b47c111","type":"Toolbar"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Esophagus - Muscularis"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.65],"label":[{"tissue":"Esophagus - Muscularis"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Esophagus - Muscularis"],"width":[0.8],"x":["Esophagus - Muscularis"],"y":[2.825]}},"id":"1d885236-0dc9-4bc8-8da6-db754103facf","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"1d885236-0dc9-4bc8-8da6-db754103facf","type":"ColumnDataSource"},"glyph":{"id":"e9657b98-ba00-40a9-9842-b242e1998853","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"2b038e1d-5ae7-4e3b-b5ef-8a2170f29736","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f0de4140-1f21-4894-a9d5-a74d6ad39c5e","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Heart - Atrial Appendage"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[2.323],"label":[{"tissue":"Heart - Atrial Appendage"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Heart - Atrial Appendage"],"width":[0.8],"x":["Heart - Atrial Appendage"],"y":[1.1615]}},"id":"d29e0bfc-e6e3-4cd6-8654-4274f3fcd210","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Liver"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[2.238],"label":[{"tissue":"Liver"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Liver"],"width":[0.8],"x":["Liver"],"y":[1.119]}},"id":"668c0e53-d19b-48fa-bd8e-a8ae6848a59b","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"366f14fb-50f7-4fb6-a522-900a3c8ed0f4","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"e8c34199-8dfa-44a1-b4e2-e45f8cf0be9a","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Cells - Transformed fibroblasts"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.2234],"label":[{"tissue":"Cells - Transformed fibroblasts"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Cells - Transformed fibroblasts"],"width":[0.8],"x":["Cells - Transformed fibroblasts"],"y":[0.1117]}},"id":"e97e48ee-9d69-4ae8-8fb0-2a167b1fecb1","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"e97e48ee-9d69-4ae8-8fb0-2a167b1fecb1","type":"ColumnDataSource"},"glyph":{"id":"9a4ef5d0-7a94-4781-a937-e098fd13d3e4","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"5815b237-8cf2-487c-b095-690dc2890933","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"6ac8aa62-f551-49e2-909c-05d214724985","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"4785335b-4387-4c04-b237-d32aa816e2d2","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Fallopian Tube"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.118],"label":[{"tissue":"Fallopian Tube"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Fallopian Tube"],"width":[0.8],"x":["Fallopian Tube"],"y":[2.059]}},"id":"e0013040-b925-4cb4-9999-69c914ce29ec","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"e0013040-b925-4cb4-9999-69c914ce29ec","type":"ColumnDataSource"},"glyph":{"id":"ba15689f-5491-431e-88db-ec2ba64a0495","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"4cf382be-49bd-43ef-98b0-e1cee230da78","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"41dbccc5-e3d2-4006-b61a-285d5cf0b3da","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"625794b4-16ba-4cf9-9787-9ee98de8336a","type":"Rect"},{"attributes":{"data_source":{"id":"ff3ac7b9-f385-44e9-ab18-230dd743cdb4","type":"ColumnDataSource"},"glyph":{"id":"f0de4140-1f21-4894-a9d5-a74d6ad39c5e","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"a01803a5-d678-47a9-8348-cc7725667831","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Adipose - Visceral (Omentum)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.465],"label":[{"tissue":"Adipose - Visceral (Omentum)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Adipose - Visceral (Omentum)"],"width":[0.8],"x":["Adipose - Visceral (Omentum)"],"y":[0.7325]}},"id":"6bf92839-d2fa-467b-b3bc-156b2fc8184b","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"6bf92839-d2fa-467b-b3bc-156b2fc8184b","type":"ColumnDataSource"},"glyph":{"id":"4785335b-4387-4c04-b237-d32aa816e2d2","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"a87b7e3c-0e8a-4689-907b-ef767a73cc78","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"2cdc27d5-c0d6-4a6b-9626-474f84ea514b","type":"ColumnDataSource"},"glyph":{"id":"f996a716-f19a-4c26-8367-8ccc2c3368d6","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"ff68c99a-6356-46d0-918b-1526f80d03bf","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"d29e0bfc-e6e3-4cd6-8654-4274f3fcd210","type":"ColumnDataSource"},"glyph":{"id":"e8c34199-8dfa-44a1-b4e2-e45f8cf0be9a","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"fc4c7d20-d9ab-4462-b650-df3b89525985","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Kidney - Cortex"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[3.367],"label":[{"tissue":"Kidney - Cortex"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Kidney - Cortex"],"width":[0.8],"x":["Kidney - Cortex"],"y":[1.6835]}},"id":"2cdc27d5-c0d6-4a6b-9626-474f84ea514b","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Heart - Left Ventricle"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[3.569],"label":[{"tissue":"Heart - Left Ventricle"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Heart - Left Ventricle"],"width":[0.8],"x":["Heart - Left Ventricle"],"y":[1.7845]}},"id":"3e81ffcd-7621-4ebd-a0a6-dbac536cac86","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"d688e938-c1ab-440c-abaf-50c0a932e695","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"654a2a11-b6e5-4f51-8676-db8450f518a4","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"bab1a336-ad02-43b0-b196-613dae361a97","type":"Rect"},{"attributes":{"data_source":{"id":"2bc7c9d6-71dd-4cda-86d7-a08611260a96","type":"ColumnDataSource"},"glyph":{"id":"4957a7ed-ccb1-4e2f-8ec2-fdb901e3e55b","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"0a62c42a-05c6-4b08-8f33-e7c3cebfc374","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Spleen"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.182],"label":[{"tissue":"Spleen"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Spleen"],"width":[0.8],"x":["Spleen"],"y":[0.591]}},"id":"803e8d11-6765-4366-baa7-1050e0d62a31","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"af5b0ff2-122f-476c-a32d-c9ad97561f8d","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"6709ccba-bd38-4570-83ba-c01e1cc13dc9","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Cervix - Endocervix"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.6219999999999999],"label":[{"tissue":"Cervix - Endocervix"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Cervix - Endocervix"],"width":[0.8],"x":["Cervix - Endocervix"],"y":[0.8109999999999999]}},"id":"9ea28fbc-025a-40c8-8a4f-35b566b2eb14","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"9ea28fbc-025a-40c8-8a4f-35b566b2eb14","type":"ColumnDataSource"},"glyph":{"id":"41dbccc5-e3d2-4006-b61a-285d5cf0b3da","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"8bc3cc9a-e82f-49ab-9605-fc133765b900","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Adrenal Gland"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[7.4129999999999985],"label":[{"tissue":"Adrenal Gland"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Adrenal Gland"],"width":[0.8],"x":["Adrenal Gland"],"y":[3.7064999999999992]}},"id":"c01344ac-88ea-4993-8e9b-769a7ee25ce7","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"c01344ac-88ea-4993-8e9b-769a7ee25ce7","type":"ColumnDataSource"},"glyph":{"id":"366f14fb-50f7-4fb6-a522-900a3c8ed0f4","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"19bc78e6-3911-4e24-b452-8f44ec99841b","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Esophagus - Gastroesophageal Junction"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.2860000000000005],"label":[{"tissue":"Esophagus - Gastroesophageal Junction"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Esophagus - Gastroesophageal Junction"],"width":[0.8],"x":["Esophagus - Gastroesophageal Junction"],"y":[2.6430000000000002]}},"id":"2bc7c9d6-71dd-4cda-86d7-a08611260a96","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f996a716-f19a-4c26-8367-8ccc2c3368d6","type":"Rect"},{"attributes":{"data_source":{"id":"b69d0cca-bc04-4ccf-984d-c67ec8fcbed9","type":"ColumnDataSource"},"glyph":{"id":"f230ba87-f054-43a1-8fbf-44a1ef9abf27","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"fb364606-aee5-4869-8c04-8cc8986e4a4c","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"3e81ffcd-7621-4ebd-a0a6-dbac536cac86","type":"ColumnDataSource"},"glyph":{"id":"625794b4-16ba-4cf9-9787-9ee98de8336a","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"8356fe9a-c115-400a-b8a5-dcf02b8ca701","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"b46ba967-b616-465d-8d5a-cdc9cdc8fed5","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f92afec6-bdfe-4ee8-ac12-7e39c95c4c82","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Artery - Coronary"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.6324],"label":[{"tissue":"Artery - Coronary"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Artery - Coronary"],"width":[0.8],"x":["Artery - Coronary"],"y":[0.3162]}},"id":"2d43d0ac-7b5e-4ef8-942b-2271fdd83157","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f230ba87-f054-43a1-8fbf-44a1ef9abf27","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Lung"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[2.58],"label":[{"tissue":"Lung"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Lung"],"width":[0.8],"x":["Lung"],"y":[1.29]}},"id":"224b06e3-86bc-4d8a-97c9-5634f4ed16e9","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"fc33908a-8906-4b87-ae79-4005b98c4113","type":"ColumnDataSource"},"glyph":{"id":"b46ba967-b616-465d-8d5a-cdc9cdc8fed5","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"f6ceccaf-fe48-4c8a-a6f5-79feaec19833","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"4957a7ed-ccb1-4e2f-8ec2-fdb901e3e55b","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Substantia nigra"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[2.888],"label":[{"tissue":"Brain - Substantia nigra"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Substantia nigra"],"width":[0.8],"x":["Brain - Substantia nigra"],"y":[1.444]}},"id":"53da733c-f6bd-4a48-b249-eaeafdc675de","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Colon - Sigmoid"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[8.773],"label":[{"tissue":"Colon - Sigmoid"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Colon - Sigmoid"],"width":[0.8],"x":["Colon - Sigmoid"],"y":[4.3865]}},"id":"09f07a01-8db4-439e-b587-c8c893987feb","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"09f07a01-8db4-439e-b587-c8c893987feb","type":"ColumnDataSource"},"glyph":{"id":"d688e938-c1ab-440c-abaf-50c0a932e695","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"450957d6-6dfa-4b99-b8c9-f21f79d00c79","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"668c0e53-d19b-48fa-bd8e-a8ae6848a59b","type":"ColumnDataSource"},"glyph":{"id":"6ac8aa62-f551-49e2-909c-05d214724985","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"fa0618ed-7832-4a72-a893-fc39a05980ed","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Artery - Aorta"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.5229],"label":[{"tissue":"Artery - Aorta"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Artery - Aorta"],"width":[0.8],"x":["Artery - Aorta"],"y":[0.26145]}},"id":"1a05c393-9184-43d4-afdb-ffb5692b9074","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"1a05c393-9184-43d4-afdb-ffb5692b9074","type":"ColumnDataSource"},"glyph":{"id":"654a2a11-b6e5-4f51-8676-db8450f518a4","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"cefb76b1-d881-4352-9dc8-5e98c9428961","type":"GlyphRenderer"},{"attributes":{"below":[{"id":"8fa7e9ec-82a1-4420-b82a-7ec96418142b","type":"CategoricalAxis"}],"css_classes":null,"left":[{"id":"4e564d3a-29c8-4079-9976-0151d46ad636","type":"LinearAxis"}],"renderers":[{"id":"ae72a60d-d9b7-497a-ac1e-22554852c01f","type":"BoxAnnotation"},{"id":"bd44d8b6-830c-415a-ad25-26914f96b939","type":"GlyphRenderer"},{"id":"a87b7e3c-0e8a-4689-907b-ef767a73cc78","type":"GlyphRenderer"},{"id":"19bc78e6-3911-4e24-b452-8f44ec99841b","type":"GlyphRenderer"},{"id":"cefb76b1-d881-4352-9dc8-5e98c9428961","type":"GlyphRenderer"},{"id":"22685722-766e-41eb-babd-c54026881864","type":"GlyphRenderer"},{"id":"10d7fef5-2bd3-4830-bf4a-90dd6dfa157a","type":"GlyphRenderer"},{"id":"f6ceccaf-fe48-4c8a-a6f5-79feaec19833","type":"GlyphRenderer"},{"id":"1539abef-cb64-4d3b-8294-349e0b3fff6f","type":"GlyphRenderer"},{"id":"10a3d891-47a3-47f4-9265-0f9072b12022","type":"GlyphRenderer"},{"id":"2cc0942a-f76e-44b9-a15c-1e9ca5eef5fd","type":"GlyphRenderer"},{"id":"dab2c33d-2e4e-4b7b-bb63-b655271d3631","type":"GlyphRenderer"},{"id":"f4b3f9c3-b4ce-4b1d-a5d5-4a73dbbd9fb3","type":"GlyphRenderer"},{"id":"7995ed16-065d-4a2e-8ffe-88d399f878e6","type":"GlyphRenderer"},{"id":"4fa855de-161d-41cf-b319-0a3d60305639","type":"GlyphRenderer"},{"id":"78b921b7-4e2f-4b29-aedd-cf6563ff5422","type":"GlyphRenderer"},{"id":"0159070b-2d6a-40e6-a0e1-7916d7d00370","type":"GlyphRenderer"},{"id":"e1c17127-2e47-4a56-95a3-18ed399d0eac","type":"GlyphRenderer"},{"id":"62cdf8a7-8f2c-4541-a26c-20a4f1948b64","type":"GlyphRenderer"},{"id":"fae37dc6-f364-4aa7-bbf9-58eb24b3d754","type":"GlyphRenderer"},{"id":"4c56cb93-71ac-48f5-820e-ee110d1f8f2d","type":"GlyphRenderer"},{"id":"103c4ce0-318e-410c-a95e-4ecf370e5b32","type":"GlyphRenderer"},{"id":"d3e302fe-5cac-4ca7-983b-9adae1993fc4","type":"GlyphRenderer"},{"id":"5815b237-8cf2-487c-b095-690dc2890933","type":"GlyphRenderer"},{"id":"a01803a5-d678-47a9-8348-cc7725667831","type":"GlyphRenderer"},{"id":"8bc3cc9a-e82f-49ab-9605-fc133765b900","type":"GlyphRenderer"},{"id":"450957d6-6dfa-4b99-b8c9-f21f79d00c79","type":"GlyphRenderer"},{"id":"fb364606-aee5-4869-8c04-8cc8986e4a4c","type":"GlyphRenderer"},{"id":"0a62c42a-05c6-4b08-8f33-e7c3cebfc374","type":"GlyphRenderer"},{"id":"7840ce21-7cac-42d6-81f7-cdf3560bcd7d","type":"GlyphRenderer"},{"id":"2b038e1d-5ae7-4e3b-b5ef-8a2170f29736","type":"GlyphRenderer"},{"id":"4cf382be-49bd-43ef-98b0-e1cee230da78","type":"GlyphRenderer"},{"id":"fc4c7d20-d9ab-4462-b650-df3b89525985","type":"GlyphRenderer"},{"id":"8356fe9a-c115-400a-b8a5-dcf02b8ca701","type":"GlyphRenderer"},{"id":"ff68c99a-6356-46d0-918b-1526f80d03bf","type":"GlyphRenderer"},{"id":"fa0618ed-7832-4a72-a893-fc39a05980ed","type":"GlyphRenderer"},{"id":"de7510a2-5904-486e-8b5c-7d9a70f356a0","type":"GlyphRenderer"},{"id":"638565a5-650b-413f-ae27-89ba7cd329d6","type":"GlyphRenderer"},{"id":"3ba26763-1f72-463f-93ef-924d3c1097c5","type":"GlyphRenderer"},{"id":"ead68478-47ff-4ab8-a48d-e1c2e02dffd9","type":"GlyphRenderer"},{"id":"17981b50-cc9d-4c49-b58c-eaac856a5385","type":"GlyphRenderer"},{"id":"67cef0a0-9da1-4b8f-90e0-d4b4e4353f45","type":"GlyphRenderer"},{"id":"477a6667-6e63-46ba-a31e-a6cca4eeba99","type":"GlyphRenderer"},{"id":"9e0ec946-be00-4d6c-91cd-b3e04d80fd31","type":"GlyphRenderer"},{"id":"e2e53da6-29ca-4042-94f1-29aaf4ce76e3","type":"GlyphRenderer"},{"id":"45f19d62-d635-4852-b1e8-6a3e92f2aead","type":"GlyphRenderer"},{"id":"50102e25-f7c4-467a-9a2d-5cb66110f3f7","type":"GlyphRenderer"},{"id":"4ff54c7f-79d5-49f8-8890-45d3fabbd03c","type":"GlyphRenderer"},{"id":"5c0916a8-302a-484b-a4fa-b233741836c3","type":"GlyphRenderer"},{"id":"1095778e-d68d-4b6a-9b74-c8d7cba67bcc","type":"GlyphRenderer"},{"id":"46a5c114-3cef-4db9-babd-5cdd1ed6617d","type":"GlyphRenderer"},{"id":"bc833021-2cbf-4ede-ba06-68737aca7517","type":"GlyphRenderer"},{"id":"33ae01ec-7222-4185-b38c-496c127abbd1","type":"GlyphRenderer"},{"id":"61c1fd71-452e-4b83-9b6c-85273bc4d5ee","type":"GlyphRenderer"},{"id":"8fa7e9ec-82a1-4420-b82a-7ec96418142b","type":"CategoricalAxis"},{"id":"4e564d3a-29c8-4079-9976-0151d46ad636","type":"LinearAxis"},{"id":"ef01e7b5-1301-4a0f-93a4-99d77c303f13","type":"Grid"}],"title":{"id":"6185dabd-b721-4e63-9e4b-52e921b5bf21","type":"Title"},"tool_events":{"id":"5ef68c93-84cc-4bb9-ba13-5e6f8616716b","type":"ToolEvents"},"toolbar":{"id":"2ed66ad2-3405-4102-8ef9-0e3e6b47c111","type":"Toolbar"},"x_mapper_type":"auto","x_range":{"id":"5eb302f7-98cf-4d11-837e-2645c3073d77","type":"FactorRange"},"y_mapper_type":"auto","y_range":{"id":"409bd0ba-750d-4b43-92ef-78c30ade2c12","type":"Range1d"}},"id":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9","subtype":"Chart","type":"Plot"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Adipose - Subcutaneous"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.8047],"label":[{"tissue":"Adipose - Subcutaneous"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Adipose - Subcutaneous"],"width":[0.8],"x":["Adipose - Subcutaneous"],"y":[0.40235]}},"id":"5fea8f90-5ac8-422e-a6b7-d3420c9688ba","type":"ColumnDataSource"},{"attributes":{"callback":null,"factors":["Adipose - Subcutaneous","Adipose - Visceral (Omentum)","Adrenal Gland","Artery - Aorta","Artery - Coronary","Artery - Tibial","Bladder","Brain - Amygdala","Brain - Anterior cingulate cortex (BA24)","Brain - Caudate (basal ganglia)","Brain - Cerebellar Hemisphere","Brain - Cerebellum","Brain - Cortex","Brain - Frontal Cortex (BA9)","Brain - Hippocampus","Brain - Hypothalamus","Brain - Nucleus accumbens (basal ganglia)","Brain - Putamen (basal ganglia)","Brain - Spinal cord (cervical c-1)","Brain - Substantia nigra","Breast - Mammary Tissue","Cells - EBV-transformed lymphocytes","Cells - Transformed fibroblasts","Cervix - Ectocervix","Cervix - Endocervix","Colon - Sigmoid","Colon - Transverse","Esophagus - Gastroesophageal Junction","Esophagus - Mucosa","Esophagus - Muscularis","Fallopian Tube","Heart - Atrial Appendage","Heart - Left Ventricle","Kidney - Cortex","Liver","Lung","Minor Salivary Gland","Muscle - Skeletal","Nerve - Tibial","Ovary","Pancreas","Pituitary","Prostate","Skin - Not Sun Exposed (Suprapubic)","Skin - Sun Exposed (Lower leg)","Small Intestine - Terminal Ileum","Spleen","Stomach","Testis","Thyroid","Uterus","Vagina","Whole Blood"]},"id":"5eb302f7-98cf-4d11-837e-2645c3073d77","type":"FactorRange"},{"attributes":{},"id":"5ef68c93-84cc-4bb9-ba13-5e6f8616716b","type":"ToolEvents"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"39d94d3e-bb26-4c8f-9894-cf50f5c702e9","type":"Rect"},{"attributes":{"data_source":{"id":"224b06e3-86bc-4d8a-97c9-5634f4ed16e9","type":"ColumnDataSource"},"glyph":{"id":"bab1a336-ad02-43b0-b196-613dae361a97","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"de7510a2-5904-486e-8b5c-7d9a70f356a0","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Minor Salivary Gland"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[3.75],"label":[{"tissue":"Minor Salivary Gland"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Minor Salivary Gland"],"width":[0.8],"x":["Minor Salivary Gland"],"y":[1.875]}},"id":"cf9c6b00-87ee-4a94-b588-91a34496a91a","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Cortex"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.501],"label":[{"tissue":"Brain - Cortex"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Cortex"],"width":[0.8],"x":["Brain - Cortex"],"y":[2.7505]}},"id":"c40cf9ca-8e40-4b57-b026-a10abf2f0f62","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"c40cf9ca-8e40-4b57-b026-a10abf2f0f62","type":"ColumnDataSource"},"glyph":{"id":"0814fc51-7599-4973-a2df-0e7070cf0d49","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"7995ed16-065d-4a2e-8ffe-88d399f878e6","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"443ae6d3-8b62-4777-bc2b-159970aeeea4","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Nucleus accumbens (basal ganglia)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.649],"label":[{"tissue":"Brain - Nucleus accumbens (basal ganglia)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Nucleus accumbens (basal ganglia)"],"width":[0.8],"x":["Brain - Nucleus accumbens (basal ganglia)"],"y":[2.8245]}},"id":"536ed63f-1f43-419e-9bfa-9ba62367f316","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"2da7e649-ab76-4a56-bdf0-bb77405aa6b1","type":"Rect"},{"attributes":{"data_source":{"id":"cf9c6b00-87ee-4a94-b588-91a34496a91a","type":"ColumnDataSource"},"glyph":{"id":"39d94d3e-bb26-4c8f-9894-cf50f5c702e9","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"638565a5-650b-413f-ae27-89ba7cd329d6","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"30e91213-4830-4d97-a2c2-4d0db06a8a6a","type":"ColumnDataSource"},"glyph":{"id":"f92afec6-bdfe-4ee8-ac12-7e39c95c4c82","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"78b921b7-4e2f-4b29-aedd-cf6563ff5422","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Hippocampus"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[3.593],"label":[{"tissue":"Brain - Hippocampus"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Hippocampus"],"width":[0.8],"x":["Brain - Hippocampus"],"y":[1.7965]}},"id":"30e91213-4830-4d97-a2c2-4d0db06a8a6a","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Nerve - Tibial"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.6281],"label":[{"tissue":"Nerve - Tibial"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Nerve - Tibial"],"width":[0.8],"x":["Nerve - Tibial"],"y":[0.31405]}},"id":"890cd931-7c81-4247-8c08-7e3cc915456a","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"393b5a46-0e29-4187-ac91-d6c2365412e9","type":"ColumnDataSource"},"glyph":{"id":"6709ccba-bd38-4570-83ba-c01e1cc13dc9","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"67cef0a0-9da1-4b8f-90e0-d4b4e4353f45","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Colon - Transverse"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[6.937],"label":[{"tissue":"Colon - Transverse"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Colon - Transverse"],"width":[0.8],"x":["Colon - Transverse"],"y":[3.4685]}},"id":"b69d0cca-bc04-4ccf-984d-c67ec8fcbed9","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"e476e9c2-8223-4d95-a8ed-7e6ce5246656","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Pancreas"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[3.6830000000000003],"label":[{"tissue":"Pancreas"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Pancreas"],"width":[0.8],"x":["Pancreas"],"y":[1.8415000000000001]}},"id":"393b5a46-0e29-4187-ac91-d6c2365412e9","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Muscle - Skeletal"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[2.553],"label":[{"tissue":"Muscle - Skeletal"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Muscle - Skeletal"],"width":[0.8],"x":["Muscle - Skeletal"],"y":[1.2765]}},"id":"51e97161-0e3a-4e0d-9643-d2e8d9150d4f","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"51e97161-0e3a-4e0d-9643-d2e8d9150d4f","type":"ColumnDataSource"},"glyph":{"id":"443ae6d3-8b62-4777-bc2b-159970aeeea4","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"3ba26763-1f72-463f-93ef-924d3c1097c5","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Hypothalamus"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[3.1180000000000003],"label":[{"tissue":"Brain - Hypothalamus"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Hypothalamus"],"width":[0.8],"x":["Brain - Hypothalamus"],"y":[1.5590000000000002]}},"id":"7ecc8a22-a4fc-4f0e-a48b-c3fc21468a72","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"7ecc8a22-a4fc-4f0e-a48b-c3fc21468a72","type":"ColumnDataSource"},"glyph":{"id":"2da7e649-ab76-4a56-bdf0-bb77405aa6b1","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"0159070b-2d6a-40e6-a0e1-7916d7d00370","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"c588c37d-094c-4a99-9907-eab04719c8e0","type":"Rect"},{"attributes":{"data_source":{"id":"890cd931-7c81-4247-8c08-7e3cc915456a","type":"ColumnDataSource"},"glyph":{"id":"b4cd214e-d1ca-4c8b-b867-1f5780941596","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"ead68478-47ff-4ab8-a48d-e1c2e02dffd9","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"9824b1ad-f242-485d-a2fb-08efe71b4584","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Breast - Mammary Tissue"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.337],"label":[{"tissue":"Breast - Mammary Tissue"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Breast - Mammary Tissue"],"width":[0.8],"x":["Breast - Mammary Tissue"],"y":[0.6685]}},"id":"5581b40a-d41d-4a17-a5e1-3a625b6bd0ad","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"536ed63f-1f43-419e-9bfa-9ba62367f316","type":"ColumnDataSource"},"glyph":{"id":"e476e9c2-8223-4d95-a8ed-7e6ce5246656","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"e1c17127-2e47-4a56-95a3-18ed399d0eac","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"84559c9a-c1ff-46e4-9d1d-4d5acb5f4abb","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Spinal cord (cervical c-1)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[3.283],"label":[{"tissue":"Brain - Spinal cord (cervical c-1)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Spinal cord (cervical c-1)"],"width":[0.8],"x":["Brain - Spinal cord (cervical c-1)"],"y":[1.6415]}},"id":"6f470873-b3e6-4b73-93af-5f38bf70b7f8","type":"ColumnDataSource"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Ovary"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.4080000000000001],"label":[{"tissue":"Ovary"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Ovary"],"width":[0.8],"x":["Ovary"],"y":[0.7040000000000001]}},"id":"b67116f8-708b-47a7-b2e9-6867753be0d2","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"b67116f8-708b-47a7-b2e9-6867753be0d2","type":"ColumnDataSource"},"glyph":{"id":"c588c37d-094c-4a99-9907-eab04719c8e0","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"17981b50-cc9d-4c49-b58c-eaac856a5385","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"fc6f32c6-9c85-426c-a012-bc725734edb9","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"c94d7547-1809-4a93-be79-d78158d75737","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Brain - Putamen (basal ganglia)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.143],"label":[{"tissue":"Brain - Putamen (basal ganglia)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Brain - Putamen (basal ganglia)"],"width":[0.8],"x":["Brain - Putamen (basal ganglia)"],"y":[2.5715]}},"id":"ca2dac45-b192-4e77-b9e5-d23f7163a584","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"ca2dac45-b192-4e77-b9e5-d23f7163a584","type":"ColumnDataSource"},"glyph":{"id":"9824b1ad-f242-485d-a2fb-08efe71b4584","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"62cdf8a7-8f2c-4541-a26c-20a4f1948b64","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"803e8d11-6765-4366-baa7-1050e0d62a31","type":"ColumnDataSource"},"glyph":{"id":"d866ae4b-bce0-44a3-9346-174f53fce7be","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"4ff54c7f-79d5-49f8-8890-45d3fabbd03c","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"11a9138c-a650-443c-92db-2b38c687b63b","type":"Rect"},{"attributes":{"callback":null,"end":23.919},"id":"409bd0ba-750d-4b43-92ef-78c30ade2c12","type":"Range1d"},{"attributes":{"data_source":{"id":"5581b40a-d41d-4a17-a5e1-3a625b6bd0ad","type":"ColumnDataSource"},"glyph":{"id":"78fad65c-10b4-42b8-9ecd-e067a6bb4541","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"103c4ce0-318e-410c-a95e-4ecf370e5b32","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Pituitary"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.956],"label":[{"tissue":"Pituitary"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Pituitary"],"width":[0.8],"x":["Pituitary"],"y":[2.978]}},"id":"89924cf4-8f85-48ba-a6e5-ba897164ef62","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"89924cf4-8f85-48ba-a6e5-ba897164ef62","type":"ColumnDataSource"},"glyph":{"id":"84559c9a-c1ff-46e4-9d1d-4d5acb5f4abb","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"477a6667-6e63-46ba-a31e-a6cca4eeba99","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"6f470873-b3e6-4b73-93af-5f38bf70b7f8","type":"ColumnDataSource"},"glyph":{"id":"2e000800-7d83-4fa2-8c2d-da298fbfbf8c","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"fae37dc6-f364-4aa7-bbf9-58eb24b3d754","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"d866ae4b-bce0-44a3-9346-174f53fce7be","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Skin - Not Sun Exposed (Suprapubic)"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.261],"label":[{"tissue":"Skin - Not Sun Exposed (Suprapubic)"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Skin - Not Sun Exposed (Suprapubic)"],"width":[0.8],"x":["Skin - Not Sun Exposed (Suprapubic)"],"y":[2.6305]}},"id":"76fb259c-50a0-4355-9aa8-d9cb101689a2","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"2e000800-7d83-4fa2-8c2d-da298fbfbf8c","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"b4cd214e-d1ca-4c8b-b867-1f5780941596","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Prostate"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.255],"label":[{"tissue":"Prostate"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Prostate"],"width":[0.8],"x":["Prostate"],"y":[2.6275]}},"id":"4f478f80-da8c-46df-97e5-18da65eabb4b","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"4f478f80-da8c-46df-97e5-18da65eabb4b","type":"ColumnDataSource"},"glyph":{"id":"c94d7547-1809-4a93-be79-d78158d75737","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"9e0ec946-be00-4d6c-91cd-b3e04d80fd31","type":"GlyphRenderer"}],"root_ids":["e5c98cd7-3d3d-440e-8f81-eed734ed80e9"]},"title":"Bokeh Application","version":"0.12.4"}};
+      var render_items = [{"docid":"a84004f7-67aa-4466-97a9-f817b3da8765","elementid":"ad25ce5f-9ac8-4140-93b9-40f2339f0338","modelid":"e5c98cd7-3d3d-440e-8f81-eed734ed80e9"}];
+      
+      Bokeh.embed.embed_items(docs_json, render_items);
+    });
+  };
+  if (document.readyState != "loading") fn();
+  else document.addEventListener("DOMContentLoaded", fn);
+})();
+
+</script>
+<div class="bk-root">
+    <div class="bk-plotdiv" id="ad25ce5f-9ac8-4140-93b9-40f2339f0338"></div>
+</div>
+<h5>Mouse brain (Barres lab)</h5>
+
+
+<script type="text/javascript">
+    (function() {
+  var fn = function() {
+    Bokeh.safely(function() {
+      var docs_json = {"e7e07365-cbe0-4075-8f05-06c71d8df09b":{"roots":{"references":[{"attributes":{"dimension":1,"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"},"ticker":{"id":"0e53af3c-454a-4a8b-ab9e-b76cfa99ebb4","type":"BasicTicker"}},"id":"b678d23d-05a1-4507-9a2e-66de8365759c","type":"Grid"},{"attributes":{"bottom_units":"screen","fill_alpha":{"value":0.5},"fill_color":{"value":"lightgrey"},"left_units":"screen","level":"overlay","line_alpha":{"value":1.0},"line_color":{"value":"black"},"line_dash":[4,4],"line_width":{"value":2},"plot":null,"render_mode":"css","right_units":"screen","top_units":"screen"},"id":"b02c83ab-41f2-43b1-9e78-2905d88545d4","type":"BoxAnnotation"},{"attributes":{"data_source":{"id":"2831fefa-0446-436e-b3b9-f514c1114403","type":"ColumnDataSource"},"glyph":{"id":"25786786-81f8-4164-afcd-9c2e3c584a4e","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"c53700b2-714c-44c5-be85-9ef28af7081c","type":"GlyphRenderer"},{"attributes":{"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"}},"id":"decb3c12-116d-4f07-b915-388056d32fd8","type":"PanTool"},{"attributes":{"plot":null,"text":"Expression by tissue"},"id":"b856d647-463c-4ec3-bb93-cb15df0538e7","type":"Title"},{"attributes":{"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"}},"id":"71f3f1a8-ac75-41ab-87cf-154c8f995c06","type":"WheelZoomTool"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Myelinating Oligodendrocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.596744],"label":[{"tissue":"Myelinating Oligodendrocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Myelinating Oligodendrocytes"],"width":[0.8],"x":["Myelinating Oligodendrocytes"],"y":[0.798372]}},"id":"2831fefa-0446-436e-b3b9-f514c1114403","type":"ColumnDataSource"},{"attributes":{"callback":null,"end":17.43},"id":"7dde2ca8-4913-4b24-8c8d-748953e3754d","type":"Range1d"},{"attributes":{"overlay":{"id":"b02c83ab-41f2-43b1-9e78-2905d88545d4","type":"BoxAnnotation"},"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"}},"id":"833678c9-0c05-4a62-922f-af4f4db9be04","type":"BoxZoomTool"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"6c3ac732-f26b-4e58-bdf8-30234cc9d0d4","type":"Rect"},{"attributes":{"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"}},"id":"2c8bcd80-bf1d-4a57-ae9b-8503714103d7","type":"SaveTool"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Endothelial Cells"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[5.14471],"label":[{"tissue":"Endothelial Cells"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Endothelial Cells"],"width":[0.8],"x":["Endothelial Cells"],"y":[2.572355]}},"id":"64c9e015-9b43-471a-8bd8-136da80fedba","type":"ColumnDataSource"},{"attributes":{"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"}},"id":"124ac572-c2d3-4c02-989e-23e543d0096a","type":"ResetTool"},{"attributes":{"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"}},"id":"f0b3bfd7-20a9-46f7-9260-b853abdc5a43","type":"HelpTool"},{"attributes":{},"id":"0e53af3c-454a-4a8b-ab9e-b76cfa99ebb4","type":"BasicTicker"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"cerebral cortex"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[16.6],"label":[{"tissue":"cerebral cortex"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["cerebral cortex"],"width":[0.8],"x":["cerebral cortex"],"y":[8.3]}},"id":"b80088fe-ee18-445e-bb72-ab7f84208f99","type":"ColumnDataSource"},{"attributes":{},"id":"b41c5e20-50f5-48ef-b3c9-89ae364432ef","type":"CategoricalTicker"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"5de80558-9081-4099-ac39-1d067d60eb0a","type":"Rect"},{"attributes":{"axis_label":"Sum( Expression )","formatter":{"id":"b9ff9f2d-d279-4a40-a19f-0f5c0cf24b53","type":"BasicTickFormatter"},"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"},"ticker":{"id":"0e53af3c-454a-4a8b-ab9e-b76cfa99ebb4","type":"BasicTicker"}},"id":"8ce7ca71-6e17-4172-ae31-89fe30fd2e02","type":"LinearAxis"},{"attributes":{"data_source":{"id":"64c9e015-9b43-471a-8bd8-136da80fedba","type":"ColumnDataSource"},"glyph":{"id":"30f4cb9a-5015-45ca-93fc-67473dc7c258","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"9ec7d9a5-5291-4928-b9bf-7959021fd669","type":"GlyphRenderer"},{"attributes":{"active_drag":"auto","active_scroll":"auto","active_tap":"auto","tools":[{"id":"decb3c12-116d-4f07-b915-388056d32fd8","type":"PanTool"},{"id":"71f3f1a8-ac75-41ab-87cf-154c8f995c06","type":"WheelZoomTool"},{"id":"833678c9-0c05-4a62-922f-af4f4db9be04","type":"BoxZoomTool"},{"id":"2c8bcd80-bf1d-4a57-ae9b-8503714103d7","type":"SaveTool"},{"id":"124ac572-c2d3-4c02-989e-23e543d0096a","type":"ResetTool"},{"id":"f0b3bfd7-20a9-46f7-9260-b853abdc5a43","type":"HelpTool"}]},"id":"9596d244-01a0-4c74-8059-fab8018d0db3","type":"Toolbar"},{"attributes":{},"id":"ad17b3b3-69f0-4157-8a69-3b8e93e07aed","type":"CategoricalTickFormatter"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"30f4cb9a-5015-45ca-93fc-67473dc7c258","type":"Rect"},{"attributes":{},"id":"b9ff9f2d-d279-4a40-a19f-0f5c0cf24b53","type":"BasicTickFormatter"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"d8f0a214-dfce-4411-9001-94a3d4b43d1a","type":"Rect"},{"attributes":{"callback":null,"factors":["Astrocytes","Endothelial Cells","Microglia","Myelinating Oligodendrocytes","Neuron","Newly Formed Oligodendrocyte","Oligodendrocyte Precursor Cell","cerebral cortex"]},"id":"48dac060-471c-4ceb-ac30-339fa8119058","type":"FactorRange"},{"attributes":{"data_source":{"id":"b80088fe-ee18-445e-bb72-ab7f84208f99","type":"ColumnDataSource"},"glyph":{"id":"6c3ac732-f26b-4e58-bdf8-30234cc9d0d4","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"02e720f1-1ce9-480e-8bb9-ccaa11583456","type":"GlyphRenderer"},{"attributes":{"data_source":{"id":"57e00ec7-7c25-44bf-8eb7-4d6142e8902b","type":"ColumnDataSource"},"glyph":{"id":"5de80558-9081-4099-ac39-1d067d60eb0a","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"3472011e-55e9-4e4c-baaf-0fd6da8e163b","type":"GlyphRenderer"},{"attributes":{},"id":"f59fbac2-093c-472a-bc31-4ed9e47774c9","type":"ToolEvents"},{"attributes":{"below":[{"id":"640072e7-28b8-44dd-bdb5-d0ba2ef23993","type":"CategoricalAxis"}],"css_classes":null,"left":[{"id":"8ce7ca71-6e17-4172-ae31-89fe30fd2e02","type":"LinearAxis"}],"renderers":[{"id":"b02c83ab-41f2-43b1-9e78-2905d88545d4","type":"BoxAnnotation"},{"id":"02e720f1-1ce9-480e-8bb9-ccaa11583456","type":"GlyphRenderer"},{"id":"3472011e-55e9-4e4c-baaf-0fd6da8e163b","type":"GlyphRenderer"},{"id":"5de68c07-10c5-4df9-9cc0-95d8eab313ef","type":"GlyphRenderer"},{"id":"e826acdf-e908-48dc-8392-92b63f21a1a3","type":"GlyphRenderer"},{"id":"5ba94403-3c17-490a-9041-8a91e3a46fcd","type":"GlyphRenderer"},{"id":"c53700b2-714c-44c5-be85-9ef28af7081c","type":"GlyphRenderer"},{"id":"7b9ee180-3390-463b-80d8-6674f78bb6f8","type":"GlyphRenderer"},{"id":"9ec7d9a5-5291-4928-b9bf-7959021fd669","type":"GlyphRenderer"},{"id":"640072e7-28b8-44dd-bdb5-d0ba2ef23993","type":"CategoricalAxis"},{"id":"8ce7ca71-6e17-4172-ae31-89fe30fd2e02","type":"LinearAxis"},{"id":"b678d23d-05a1-4507-9a2e-66de8365759c","type":"Grid"}],"title":{"id":"b856d647-463c-4ec3-bb93-cb15df0538e7","type":"Title"},"tool_events":{"id":"f59fbac2-093c-472a-bc31-4ed9e47774c9","type":"ToolEvents"},"toolbar":{"id":"9596d244-01a0-4c74-8059-fab8018d0db3","type":"Toolbar"},"x_mapper_type":"auto","x_range":{"id":"48dac060-471c-4ceb-ac30-339fa8119058","type":"FactorRange"},"y_mapper_type":"auto","y_range":{"id":"7dde2ca8-4913-4b24-8c8d-748953e3754d","type":"Range1d"}},"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Astrocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.4464915000000005],"label":[{"tissue":"Astrocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Astrocytes"],"width":[0.8],"x":["Astrocytes"],"y":[2.2232457500000002]}},"id":"57e00ec7-7c25-44bf-8eb7-4d6142e8902b","type":"ColumnDataSource"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"80c2dd32-bb91-4862-b303-56c22061fe45","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Neuron"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[10.6046245],"label":[{"tissue":"Neuron"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Neuron"],"width":[0.8],"x":["Neuron"],"y":[5.30231225]}},"id":"ac652752-7805-4512-aa5e-7fbb71905633","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"ac652752-7805-4512-aa5e-7fbb71905633","type":"ColumnDataSource"},"glyph":{"id":"d8f0a214-dfce-4411-9001-94a3d4b43d1a","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"5de68c07-10c5-4df9-9cc0-95d8eab313ef","type":"GlyphRenderer"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f710d69a-b428-4bb5-830d-81e453b53886","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"0be401c8-b394-4320-84a3-a316918026f1","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"25786786-81f8-4164-afcd-9c2e3c584a4e","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Oligodendrocyte Precursor Cell"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.470848999999999],"label":[{"tissue":"Oligodendrocyte Precursor Cell"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Oligodendrocyte Precursor Cell"],"width":[0.8],"x":["Oligodendrocyte Precursor Cell"],"y":[2.2354244999999997]}},"id":"1bf16439-2902-43a4-83a9-8960e7bdeb21","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"1bf16439-2902-43a4-83a9-8960e7bdeb21","type":"ColumnDataSource"},"glyph":{"id":"80c2dd32-bb91-4862-b303-56c22061fe45","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"e826acdf-e908-48dc-8392-92b63f21a1a3","type":"GlyphRenderer"},{"attributes":{"axis_label":"Tissue","formatter":{"id":"ad17b3b3-69f0-4157-8a69-3b8e93e07aed","type":"CategoricalTickFormatter"},"major_label_orientation":0.7853981633974483,"plot":{"id":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd","subtype":"Chart","type":"Plot"},"ticker":{"id":"b41c5e20-50f5-48ef-b3c9-89ae364432ef","type":"CategoricalTicker"}},"id":"640072e7-28b8-44dd-bdb5-d0ba2ef23993","type":"CategoricalAxis"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Microglia"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[4.8972615],"label":[{"tissue":"Microglia"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Microglia"],"width":[0.8],"x":["Microglia"],"y":[2.44863075]}},"id":"10499f6c-bb55-42da-b7f3-4896b045eb71","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"10499f6c-bb55-42da-b7f3-4896b045eb71","type":"ColumnDataSource"},"glyph":{"id":"f710d69a-b428-4bb5-830d-81e453b53886","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"7b9ee180-3390-463b-80d8-6674f78bb6f8","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Newly Formed Oligodendrocyte"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.6201675],"label":[{"tissue":"Newly Formed Oligodendrocyte"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Newly Formed Oligodendrocyte"],"width":[0.8],"x":["Newly Formed Oligodendrocyte"],"y":[0.81008375]}},"id":"97fef3ec-546a-4cc2-b304-ffb47f932b8b","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"97fef3ec-546a-4cc2-b304-ffb47f932b8b","type":"ColumnDataSource"},"glyph":{"id":"0be401c8-b394-4320-84a3-a316918026f1","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"5ba94403-3c17-490a-9041-8a91e3a46fcd","type":"GlyphRenderer"}],"root_ids":["f7eaa00e-2c9c-4db3-81e0-d1963a139ffd"]},"title":"Bokeh Application","version":"0.12.4"}};
+      var render_items = [{"docid":"e7e07365-cbe0-4075-8f05-06c71d8df09b","elementid":"8792ac29-41a8-4dd1-adbe-b919a8b4e9b1","modelid":"f7eaa00e-2c9c-4db3-81e0-d1963a139ffd"}];
+      
+      Bokeh.embed.embed_items(docs_json, render_items);
+    });
+  };
+  if (document.readyState != "loading") fn();
+  else document.addEventListener("DOMContentLoaded", fn);
+})();
+
+</script>
+<div class="bk-root">
+    <div class="bk-plotdiv" id="8792ac29-41a8-4dd1-adbe-b919a8b4e9b1"></div>
+</div>
+<h5>Human brain (Barres lab)</h5>
+
+
+<script type="text/javascript">
+    (function() {
+  var fn = function() {
+    Bokeh.safely(function() {
+      var docs_json = {"f231cd4e-b547-43b1-a6b6-9092d1ad6d19":{"roots":{"references":[{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"3a18981d-29ae-4765-b6fb-c8df335e958b","type":"Rect"},{"attributes":{"plot":null,"text":"Expression by tissue"},"id":"afff2e50-609b-4b46-b625-8f8eadf26125","type":"Title"},{"attributes":{"active_drag":"auto","active_scroll":"auto","active_tap":"auto","tools":[{"id":"20faf93c-d09d-4c99-a2ce-66a45db60610","type":"PanTool"},{"id":"6a7e1303-8bda-463f-b16e-fc96a3ca33bd","type":"WheelZoomTool"},{"id":"59dfc351-85a6-4c1c-bbfa-c09888238af3","type":"BoxZoomTool"},{"id":"0ad4c9e9-54c0-4bde-b4c5-81c612a98acc","type":"SaveTool"},{"id":"60aa7466-2eb1-4b9c-b9ca-ccef1a92942e","type":"ResetTool"},{"id":"ce65811d-b299-4440-8b93-38a59bdcc081","type":"HelpTool"}]},"id":"0baa7095-7857-41e4-b84f-f3cdbace58d7","type":"Toolbar"},{"attributes":{"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"}},"id":"20faf93c-d09d-4c99-a2ce-66a45db60610","type":"PanTool"},{"attributes":{"data_source":{"id":"5851fca1-c367-4959-a6a1-e43eb0c87908","type":"ColumnDataSource"},"glyph":{"id":"e50822a7-9625-4231-a05e-20aef37bbbd5","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"b4ec1834-6882-40e9-b3a3-209a53c817b5","type":"GlyphRenderer"},{"attributes":{"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"}},"id":"6a7e1303-8bda-463f-b16e-fc96a3ca33bd","type":"WheelZoomTool"},{"attributes":{"overlay":{"id":"0cb80533-201b-44cb-bf31-b756e9441650","type":"BoxAnnotation"},"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"}},"id":"59dfc351-85a6-4c1c-bbfa-c09888238af3","type":"BoxZoomTool"},{"attributes":{"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"}},"id":"0ad4c9e9-54c0-4bde-b4c5-81c612a98acc","type":"SaveTool"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"f7890038-ca57-4e35-a629-0ef08f5c8dcd","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"ffd696c2-a4b4-4bd4-9108-8002726f90b9","type":"Rect"},{"attributes":{"dimension":1,"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"},"ticker":{"id":"22259871-4453-488c-ac35-eb2aff860d11","type":"BasicTicker"}},"id":"5960c8a3-ac37-4e27-8edb-328c515db8a6","type":"Grid"},{"attributes":{},"id":"22259871-4453-488c-ac35-eb2aff860d11","type":"BasicTicker"},{"attributes":{"axis_label":"Mean( Expression )","formatter":{"id":"9eec264f-8cd2-4ee5-9f93-4167bec1eb74","type":"BasicTickFormatter"},"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"},"ticker":{"id":"22259871-4453-488c-ac35-eb2aff860d11","type":"BasicTicker"}},"id":"f3e6865b-40e5-47ec-adfb-7fb31d729eae","type":"LinearAxis"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"e7ccef74-12a6-44f2-ace5-d4861f75dd7c","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human Endothelial"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.342619],"label":[{"tissue":"Human Endothelial"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human Endothelial"],"width":[0.8],"x":["Human Endothelial"],"y":[0.1713095]}},"id":"0df9200a-0f3e-46db-9015-8740f5de957a","type":"ColumnDataSource"},{"attributes":{"bottom_units":"screen","fill_alpha":{"value":0.5},"fill_color":{"value":"lightgrey"},"left_units":"screen","level":"overlay","line_alpha":{"value":1.0},"line_color":{"value":"black"},"line_dash":[4,4],"line_width":{"value":2},"plot":null,"render_mode":"css","right_units":"screen","top_units":"screen"},"id":"0cb80533-201b-44cb-bf31-b756e9441650","type":"BoxAnnotation"},{"attributes":{"data_source":{"id":"0df9200a-0f3e-46db-9015-8740f5de957a","type":"ColumnDataSource"},"glyph":{"id":"3a18981d-29ae-4765-b6fb-c8df335e958b","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"73ad37f3-946b-4ad6-911f-3996550ccc5f","type":"GlyphRenderer"},{"attributes":{"axis_label":"Tissue","formatter":{"id":"a945ac97-eab8-4881-830b-4e515cfa9209","type":"CategoricalTickFormatter"},"major_label_orientation":0.7853981633974483,"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"},"ticker":{"id":"0a36cb52-1a8b-403b-a555-f31b789b1aee","type":"CategoricalTicker"}},"id":"1facf5bf-2be0-4738-aaff-c337a92588e9","type":"CategoricalAxis"},{"attributes":{"callback":null,"end":1.4428551374999998},"id":"508d2b72-f104-4883-addc-7a55c71d5f84","type":"Range1d"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human GBM / peri-tumor astrocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.24766024999999997],"label":[{"tissue":"Human GBM / peri-tumor astrocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human GBM / peri-tumor astrocytes"],"width":[0.8],"x":["Human GBM / peri-tumor astrocytes"],"y":[0.12383012499999999]}},"id":"9689b167-da4f-4852-9c54-bd394b40f8d8","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"9689b167-da4f-4852-9c54-bd394b40f8d8","type":"ColumnDataSource"},"glyph":{"id":"f7890038-ca57-4e35-a629-0ef08f5c8dcd","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"d35eb7f1-d304-46bd-a801-230b8eca6323","type":"GlyphRenderer"},{"attributes":{},"id":"ba2ac088-32f6-4eaa-94ad-2c3849267771","type":"ToolEvents"},{"attributes":{"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"}},"id":"ce65811d-b299-4440-8b93-38a59bdcc081","type":"HelpTool"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"6bccb155-b7ff-426a-941e-b923e5fc86ef","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human whole cortex"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.1],"label":[{"tissue":"Human whole cortex"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human whole cortex"],"width":[0.8],"x":["Human whole cortex"],"y":[0.05]}},"id":"39f70e41-6356-4473-a8ed-954942ef1cb9","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"39f70e41-6356-4473-a8ed-954942ef1cb9","type":"ColumnDataSource"},"glyph":{"id":"ffd696c2-a4b4-4bd4-9108-8002726f90b9","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"da98316c-f9d3-4a55-940f-3b13f8788118","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human Oligodendrocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.21134600000000003],"label":[{"tissue":"Human Oligodendrocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human Oligodendrocytes"],"width":[0.8],"x":["Human Oligodendrocytes"],"y":[0.10567300000000002]}},"id":"305b209f-c6bd-4f66-ae30-bce7209a4621","type":"ColumnDataSource"},{"attributes":{},"id":"0a36cb52-1a8b-403b-a555-f31b789b1aee","type":"CategoricalTicker"},{"attributes":{},"id":"a945ac97-eab8-4881-830b-4e515cfa9209","type":"CategoricalTickFormatter"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human sclerotic hippocampi astrocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.7193915],"label":[{"tissue":"Human sclerotic hippocampi astrocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human sclerotic hippocampi astrocytes"],"width":[0.8],"x":["Human sclerotic hippocampi astrocytes"],"y":[0.35969575]}},"id":"18cf85c9-596c-44b2-8662-732895b5f409","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"18cf85c9-596c-44b2-8662-732895b5f409","type":"ColumnDataSource"},"glyph":{"id":"e7ccef74-12a6-44f2-ace5-d4861f75dd7c","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"43bf1089-70e0-4ff4-9fce-e44afaaa5c08","type":"GlyphRenderer"},{"attributes":{},"id":"9eec264f-8cd2-4ee5-9f93-4167bec1eb74","type":"BasicTickFormatter"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"89762652-a058-4b60-a99c-bdb1626017e2","type":"Rect"},{"attributes":{"data_source":{"id":"305b209f-c6bd-4f66-ae30-bce7209a4621","type":"ColumnDataSource"},"glyph":{"id":"fc0a33b5-24e0-4847-a72a-7930bcf31f55","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"7d01dbec-5899-4870-a76c-c8a8e9a15f04","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human fetal astrocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.6582183333333333],"label":[{"tissue":"Human fetal astrocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human fetal astrocytes"],"width":[0.8],"x":["Human fetal astrocytes"],"y":[0.3291091666666667]}},"id":"d1089901-b5ee-4fbe-ae01-ce03f7e25bce","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"d1089901-b5ee-4fbe-ae01-ce03f7e25bce","type":"ColumnDataSource"},"glyph":{"id":"6bccb155-b7ff-426a-941e-b923e5fc86ef","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"78a1ae90-a6be-408b-9144-9a848ca4604c","type":"GlyphRenderer"},{"attributes":{"plot":{"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"}},"id":"60aa7466-2eb1-4b9c-b9ca-ccef1a92942e","type":"ResetTool"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"e998e083-92d3-4b22-b37e-e891faac2d55","type":"Rect"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human mature astrocytes"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[1.37414775],"label":[{"tissue":"Human mature astrocytes"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human mature astrocytes"],"width":[0.8],"x":["Human mature astrocytes"],"y":[0.687073875]}},"id":"076a71c4-717d-4622-b649-a102b5b93073","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"076a71c4-717d-4622-b649-a102b5b93073","type":"ColumnDataSource"},"glyph":{"id":"89762652-a058-4b60-a99c-bdb1626017e2","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"69636a66-0da9-430b-8b7d-ba0fc462159a","type":"GlyphRenderer"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human Microglia/Macrophage"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.10000000000000002],"label":[{"tissue":"Human Microglia/Macrophage"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human Microglia/Macrophage"],"width":[0.8],"x":["Human Microglia/Macrophage"],"y":[0.05000000000000001]}},"id":"5851fca1-c367-4959-a6a1-e43eb0c87908","type":"ColumnDataSource"},{"attributes":{"callback":null,"factors":["Human Endothelial","Human GBM / peri-tumor astrocytes","Human Microglia/Macrophage","Human Neurons","Human Oligodendrocytes","Human fetal astrocytes","Human mature astrocytes","Human sclerotic hippocampi astrocytes","Human whole cortex"]},"id":"8621b90a-bcc6-4ad7-8629-27f2cc0df4dc","type":"FactorRange"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"fc0a33b5-24e0-4847-a72a-7930bcf31f55","type":"Rect"},{"attributes":{"fill_alpha":{"field":"fill_alpha"},"fill_color":{"field":"color"},"height":{"field":"height","units":"data"},"line_color":{"field":"line_color"},"width":{"field":"width","units":"data"},"x":{"field":"x"},"y":{"field":"y"}},"id":"e50822a7-9625-4231-a05e-20aef37bbbd5","type":"Rect"},{"attributes":{"below":[{"id":"1facf5bf-2be0-4738-aaff-c337a92588e9","type":"CategoricalAxis"}],"css_classes":null,"left":[{"id":"f3e6865b-40e5-47ec-adfb-7fb31d729eae","type":"LinearAxis"}],"renderers":[{"id":"0cb80533-201b-44cb-bf31-b756e9441650","type":"BoxAnnotation"},{"id":"d35eb7f1-d304-46bd-a801-230b8eca6323","type":"GlyphRenderer"},{"id":"43bf1089-70e0-4ff4-9fce-e44afaaa5c08","type":"GlyphRenderer"},{"id":"78a1ae90-a6be-408b-9144-9a848ca4604c","type":"GlyphRenderer"},{"id":"69636a66-0da9-430b-8b7d-ba0fc462159a","type":"GlyphRenderer"},{"id":"8278f247-ee57-4abc-9ae8-74e30fc17b24","type":"GlyphRenderer"},{"id":"7d01dbec-5899-4870-a76c-c8a8e9a15f04","type":"GlyphRenderer"},{"id":"b4ec1834-6882-40e9-b3a3-209a53c817b5","type":"GlyphRenderer"},{"id":"73ad37f3-946b-4ad6-911f-3996550ccc5f","type":"GlyphRenderer"},{"id":"da98316c-f9d3-4a55-940f-3b13f8788118","type":"GlyphRenderer"},{"id":"1facf5bf-2be0-4738-aaff-c337a92588e9","type":"CategoricalAxis"},{"id":"f3e6865b-40e5-47ec-adfb-7fb31d729eae","type":"LinearAxis"},{"id":"5960c8a3-ac37-4e27-8edb-328c515db8a6","type":"Grid"}],"title":{"id":"afff2e50-609b-4b46-b625-8f8eadf26125","type":"Title"},"tool_events":{"id":"ba2ac088-32f6-4eaa-94ad-2c3849267771","type":"ToolEvents"},"toolbar":{"id":"0baa7095-7857-41e4-b84f-f3cdbace58d7","type":"Toolbar"},"x_mapper_type":"auto","x_range":{"id":"8621b90a-bcc6-4ad7-8629-27f2cc0df4dc","type":"FactorRange"},"y_mapper_type":"auto","y_range":{"id":"508d2b72-f104-4883-addc-7a55c71d5f84","type":"Range1d"}},"id":"bec2c40f-9274-4744-9648-d2985f78c320","subtype":"Chart","type":"Plot"},{"attributes":{"callback":null,"column_names":["x","y","width","height","color","fill_alpha","line_color","line_alpha","label"],"data":{"chart_index":[{"tissue":"Human Neurons"}],"color":["#f22c40"],"fill_alpha":[0.8],"height":[0.21092600000000003],"label":[{"tissue":"Human Neurons"}],"line_alpha":[1.0],"line_color":["white"],"tissue":["Human Neurons"],"width":[0.8],"x":["Human Neurons"],"y":[0.10546300000000002]}},"id":"3d14508b-a525-4b2d-98ed-582def7ee4a8","type":"ColumnDataSource"},{"attributes":{"data_source":{"id":"3d14508b-a525-4b2d-98ed-582def7ee4a8","type":"ColumnDataSource"},"glyph":{"id":"e998e083-92d3-4b22-b37e-e891faac2d55","type":"Rect"},"hover_glyph":null,"nonselection_glyph":null,"selection_glyph":null},"id":"8278f247-ee57-4abc-9ae8-74e30fc17b24","type":"GlyphRenderer"}],"root_ids":["bec2c40f-9274-4744-9648-d2985f78c320"]},"title":"Bokeh Application","version":"0.12.4"}};
+      var render_items = [{"docid":"f231cd4e-b547-43b1-a6b6-9092d1ad6d19","elementid":"598e0ac5-be4d-446c-88b2-9a508546ec77","modelid":"bec2c40f-9274-4744-9648-d2985f78c320"}];
+      
+      Bokeh.embed.embed_items(docs_json, render_items);
+    });
+  };
+  if (document.readyState != "loading") fn();
+  else document.addEventListener("DOMContentLoaded", fn);
+})();
+
+</script>
+<div class="bk-root">
+    <div class="bk-plotdiv" id="598e0ac5-be4d-446c-88b2-9a508546ec77"></div>
+</div>
+<h3>Druggability</h3>
+<p>Pharos evidence level: <a href="https://pharos.nih.gov/idg/targets/A6NKD9">Tdark</a></p>
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>0</th>
+      <th>1</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>EBI Tractable</td>
+      <td>Unknown</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>EBI Druggable</td>
+      <td>Unknown</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Has endogenous ligand</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Num. ChEMBL ligands</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Num. ChEMBL drugs</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>Main subcellular locations</td>
+      <td>cell junctions</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>Additional subcellular locations</td>
+      <td>nuclear speckles</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<h3>Safety</h3>
+<p>Cancer driver: No</p>
+<p>Essential gene: No</p>
+<p>Mouse lethal: </p>
+<h5>Human genetic disease associations</h5>
+
+<div class="highlight"><pre>
+No disease associations found for this target.
+</pre></div>
+
+<h3>Known drugs</h3>
+
+<div class="highlight"><pre>
+No existing drugs found for this target.
+</pre></div>
+
+<h3>Structural information</h3>
+<h3>Assays</h3>
+    <HR/>
+    <div class="footer">
+      <p>Published from <a href="summary_report.md">summary_report.md</a>
+    using <a href="http://mpastell.com/pweave">Pweave</a> 0.30.1
+    on 14-11-2017.<p></div>
+
+            </div>
+        </div>
+    </div>
+  </BODY>
+</HTML>

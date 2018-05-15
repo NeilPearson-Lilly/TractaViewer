@@ -1,0 +1,13 @@
+Term name,HPO annotation,HPO ID,Num. genes,Withdrawn drug count
+Hepatic,Abnormality of the liver,HP:0001392,769,60
+Cardiovascular,Abnormality of the cardiovascular system,HP:0001626,1667,48
+Hematological,Abnormality of blood and blood-forming tissues,HP:0001871,944,31
+Neurological,Abnormality of the nervous system,HP:0000707,2683,27
+Dermatological,Abnormality of the skin,HP:0000951,1454,22
+Cancer,Neoplasm,HP:0002664,638,22
+Renal,Abnormality of the kidney,HP:0000077,863,12
+Respiratory,Abnormality of the respiratory system,HP:0002086,1215,9
+Reproductive,Abnormality of the genitourinary system,HP:0000119,1672,9
+Opthalmic,Abnormality of the eye,HP:0000478,2050,6
+Gastrointestinal,Abnormality of the digestive system,HP:0025031,1822,5
+Muscular,Abnormality of the musculature,HP:0003011,1928,4
