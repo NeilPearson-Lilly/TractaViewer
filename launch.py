@@ -175,6 +175,9 @@ class Downloader(QThread):
         self.t3db_drug_moas = None
         self.literature = None
         self.withdrawn_withdrawn = None
+        self.hpa_tox_lists = {}
+        self.hpatox_tissues = []
+        self.hpatox_listclasses = []
         
         # Set dataframes that will be built up as output
         self.targets = None
@@ -313,6 +316,27 @@ class Downloader(QThread):
             self.status.emit("Reading Human Protein Ontology data...")
             self.HPO_diseases_to_genes = pd.read_csv("Data/HPO_diseases_to_genes.txt", sep="\t",
                 skiprows=1, names=['Disease', 'EntrezID', 'HGNC Name'])
+
+        # Read a list of tissues we've picked out as being likely toxicity indicators from the Human Protein Atlas.
+        self.hpa_toxfiles = glob.glob("Data/HPA_tox_lists/*.csv")
+        # We can now auto-populate some lists that will help us keep this organised as desired.
+        for fl in self.hpa_toxfiles:
+            df = pd.read_csv(fl, index_col=0)
+            tissue, datatype = [re.sub('\+', ' ', i).capitalize() for i in re.split('[_\.]', basename(fl))[0:2]]
+            self.hpatox_tissues.append(tissue)
+            self.hpatox_listclasses.append(datatype)
+            if not self.hpa_tox_lists.get(tissue):
+                self.hpa_tox_lists[tissue] = {}
+            self.hpa_tox_lists[tissue][datatype] = df
+        self.hpatox_tissues = sorted(list(set(self.hpatox_tissues)))
+        self.hpatox_listclasses = sorted(list(set(self.hpatox_listclasses)))
+        # Add tissue names to the Risk factors sheet 
+        for i in sorted(self.hpatox_tissues):
+            j = "HPA " + i
+            if j not in self.riskfactorcols:
+                self.riskfactorcols.append(j)
+            if j not in self.colnms:
+                self.colnms.append(j)
         
         if not self.HPO_annotations:
             # This will involve a bit of somewhat dynamic programming. All good, as long as we do it carefully.
@@ -372,6 +396,7 @@ class Downloader(QThread):
         # Read a list of withdrawn drugs from the WITHDRAWN database
         if not self.withdrawn_withdrawn:
             self.withdrawn_withdrawn = pd.read_csv("Data/withdrawn_withdrawn_compounds.csv")
+        
         
         # We can now get Jackson lab mouse phenotype data, but it's organised in a form that is incompatible with the 
         # existing targets table. (Multiple lines per gene, basically - and no human reader-friendly means of 
@@ -804,8 +829,9 @@ class Downloader(QThread):
                 self.get_antibodyability(ind, target, displayname)
                 
                 # Get protein-protein interaction data
-                print("protein-protein")
-                self.get_protein_protein_interactions(ind, target, displayname)
+                # This adds a HUGE amount of stuff to the output. Disable for now.
+                # print("protein-protein")
+                # self.get_protein_protein_interactions(ind, target, displayname)
                 
                 # Get drug toxicology data
                 print("drug tox")
@@ -1478,6 +1504,15 @@ class Downloader(QThread):
                 if len(drugs):  # Avoid division by 0
                     ratio = float(len(withdrawn_drugs)) / float(len(drugs))
                 self.targets.set_value(index=ind, col='Withdrawn drug ratio', value=ratio)
+                # This is a similar, but simpler, check. Cross-reference against a list of most strongly-associated 
+                # genes for the most tox-prone tissues from the HPA.
+                for tissue in self.hpatox_tissues:
+                    outcomes = []
+                    for enrichment in self.hpatox_listclasses:
+                        if target['HGNC Name'] in self.hpa_tox_lists[tissue][enrichment]['Gene'].tolist():
+                            outcomes.append(enrichment)
+                    if outcomes:
+                        self.targets.set_value(index=ind, col="HPA " + tissue, value=", ".join(outcomes))
         except Exception as e:
             print("Exception in risk factors function:")
             print(e)
