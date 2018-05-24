@@ -47,7 +47,7 @@ pd.set_option('display.max_rows', None)
 # Useful variables
 disease_association_score_threshold = 0.5
 sheet_order = ['External data input', 'Basic information', 'Buckets', 'GTEX', 'Barres mouse', 'Barres human',
-               'Risk factors', 'Disease associations', 'MGI mouse', 'CanSAR', 'Protein structures',
+               'HPA Enrichment', 'Risk factors', 'Disease associations', 'MGI mouse', 'CanSAR', 'Protein structures',
                'Core fitness', 'SM Druggability', 'AB-ability', 'Feasibility', 'Existing drugs', 'Drug toxicology', 
                'Pharos', 'GWAS', 'Protein-protein interactions', 'Literature']
 
@@ -118,6 +118,7 @@ class Downloader(QThread):
         self.gtexcols = []
         self.barresmousecols = []
         self.barreshumancols = []
+        self.hpaenrichmentcols = []
         self.riskfactorcols = []
         self.diseasecols = []
         self.jacksonlabcols = []
@@ -176,8 +177,9 @@ class Downloader(QThread):
         self.literature = None
         self.withdrawn_withdrawn = None
         self.hpa_tox_lists = {}
-        self.hpatox_tissues = []
-        self.hpatox_listclasses = []
+        self.hpa_all_tissues = []
+        self.hpa_tox_tissues = ['Heart', 'Liver', 'Kidney', 'Testis', 'Cervix', 'Ovary', 'Bone marrow', 'Lymph node']
+        self.hpa_listclasses = []
         
         # Set dataframes that will be built up as output
         self.targets = None
@@ -323,18 +325,21 @@ class Downloader(QThread):
         for fl in self.hpa_toxfiles:
             df = pd.read_csv(fl, index_col=0)
             tissue, datatype = [re.sub('\+', ' ', i).capitalize() for i in re.split('[_\.]', basename(fl))[0:2]]
-            self.hpatox_tissues.append(tissue)
-            self.hpatox_listclasses.append(datatype)
+            self.hpa_all_tissues.append(tissue)
+            self.hpa_listclasses.append(datatype)
             if not self.hpa_tox_lists.get(tissue):
                 self.hpa_tox_lists[tissue] = {}
             self.hpa_tox_lists[tissue][datatype] = df
-        self.hpatox_tissues = sorted(list(set(self.hpatox_tissues)))
-        self.hpatox_listclasses = sorted(list(set(self.hpatox_listclasses)))
+        self.hpa_all_tissues = sorted(list(set(self.hpa_all_tissues)))
+        self.hpa_listclasses = sorted(list(set(self.hpa_listclasses)))
         # Add tissue names to the Risk factors sheet 
-        for i in sorted(self.hpatox_tissues):
+        for i in self.hpa_tox_tissues:
             j = "HPA " + i
             if j not in self.riskfactorcols:
                 self.riskfactorcols.append(j)
+        # And the overall pandas frame columns! Super important. 
+        for i in self.hpa_all_tissues:
+            j = "HPA " + i
             if j not in self.colnms:
                 self.colnms.append(j)
         
@@ -658,6 +663,7 @@ class Downloader(QThread):
                                 'Human Microglia/Macrophage: 51yo', 'Human Microglia/Macrophage: 63yo',
                                 'Human Endothelial: 13yo', 'Human Endothelial: 47yo', 'Human whole cortex: 45yo',
                                 'Human whole cortex: 63yo', 'Human whole cortex: 25yo', 'Human whole cortex: 53yo']
+        self.hpaenrichmentcols = ['series', 'HGNC Name', 'GeneID', 'HPA query']
         self.riskfactorcols = ['series', 'HGNC Name', 'GeneID', 'HPA query', 'Phenotype risk score',  'Withdrawn drug ratio',
                                'Mutational cancer driver genes', 'COSMIC somatic mutations in cancer genes']
         self.diseasecols = ['series', 'HGNC Name', 'GeneID', 'OpenTargets query', 'Approved Name', 'Source',
@@ -759,6 +765,9 @@ class Downloader(QThread):
                 # other, but for now, we'll prepare both.
                 print("gtex")
                 self.get_gtex_data(ind, target, displayname)
+                
+                print("hpa enrichment")
+                self.get_hpa_enrichment(ind, target, displayname)
                 
                 # Look up location data (and level of confidence) from locationdata
                 print("location")
@@ -1481,6 +1490,23 @@ class Downloader(QThread):
                     'essentiality consensus'].values[0]
                 self.targets.set_value(index=ind, col='OGEE human essential gene', value=val)
     
+    def get_hpa_enrichment(self, ind, target, displayname):
+        try:
+            if target['HGNC Name']:
+                self.emit_download_status(target, displayname, "HPA Enrichment")
+                for tissue in self.hpa_all_tissues:
+                    outcomes = []
+                    for enrichment in self.hpa_listclasses:
+                        if target['HGNC Name'] in self.hpa_tox_lists[tissue][enrichment]['Gene'].tolist():
+                            outcomes.append(enrichment)
+                    if outcomes:
+                        self.targets.set_value(index=ind, col="HPA " + tissue, value=", ".join(outcomes))
+        except Exception as e:
+            print("Exception in HPA enrichment function:")
+            print(e)
+            traceback.print_exc()
+            exit()
+    
     def get_risk_factors(self, ind, target, displayname):
         # Check if our target has phenotypes that fall into any of the lists of phenotypes from the HPO corresponding to 
         # diseases affecting certain regions of the body, and calculate a score based upon that.
@@ -1506,13 +1532,14 @@ class Downloader(QThread):
                 self.targets.set_value(index=ind, col='Withdrawn drug ratio', value=ratio)
                 # This is a similar, but simpler, check. Cross-reference against a list of most strongly-associated 
                 # genes for the most tox-prone tissues from the HPA.
-                for tissue in self.hpatox_tissues:
-                    outcomes = []
-                    for enrichment in self.hpatox_listclasses:
-                        if target['HGNC Name'] in self.hpa_tox_lists[tissue][enrichment]['Gene'].tolist():
-                            outcomes.append(enrichment)
-                    if outcomes:
-                        self.targets.set_value(index=ind, col="HPA " + tissue, value=", ".join(outcomes))
+                # for tissue in self.hpa_tox_tissues:
+                #     outcomes = []
+                #     for enrichment in self.hpa_listclasses:
+                #         if target['HGNC Name'] in self.hpa_tox_lists[tissue][enrichment]['Gene'].tolist():
+                #             outcomes.append(enrichment)
+                #     if outcomes:
+                #         self.targets.set_value(index=ind, col="HPA " + tissue, value=", ".join(outcomes))
+                # Now dealt with elsewhere (self.get_hpa_enrichment())
         except Exception as e:
             print("Exception in risk factors function:")
             print(e)
@@ -2200,6 +2227,9 @@ class Downloader(QThread):
         # Barres human sheet
         print("barres human")
         barreshumansheet = self.targets[self.barreshumancols]
+        # HPA enrichment sheet
+        print("hpa enrichment")
+        hpaenrichmentsheet = self.targets[self.hpaenrichmentcols + ["HPA " + i for i in self.hpa_all_tissues]]
         # Disease associations sheet
         print("risk")
         riskfactorssheet = self.targets[self.riskfactorcols].copy()
@@ -2264,6 +2294,7 @@ class Downloader(QThread):
         sheets_by_name['GTEX'] = gtexsheet
         sheets_by_name['Barres mouse'] = barresmousesheet
         sheets_by_name['Barres human'] = barreshumansheet
+        sheets_by_name['HPA Enrichment'] = hpaenrichmentsheet
         sheets_by_name['Risk factors'] = riskfactorssheet
         if self.disease_association_data.columns.tolist():
             sheets_by_name['Disease associations'] = diseasesheet
