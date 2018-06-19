@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-#
 # Created by: PyQt5 UI code generator 5.5
 #
 # WARNING! All changes made in this file will be lost!
@@ -10,8 +9,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(676, 665)
-        MainWindow.setMinimumSize(QtCore.QSize(359, 503))
+        MainWindow.resize(653, 656)
+        MainWindow.setMinimumSize(QtCore.QSize(653, 656))
         self.centralWidget = QtWidgets.QWidget(MainWindow)
         self.centralWidget.setObjectName("centralWidget")
         self.gridLayout = QtWidgets.QGridLayout(self.centralWidget)
@@ -19,9 +18,10 @@ class Ui_MainWindow(object):
         self.gridLayout.setSpacing(6)
         self.gridLayout.setObjectName("gridLayout")
         self.tableView = QtWidgets.QTableView(self.centralWidget)
+        self.tableView.setMinimumSize(QtCore.QSize(531, 491))
         self.tableView.setSortingEnabled(True)
         self.tableView.setObjectName("tableView")
-        self.gridLayout.addWidget(self.tableView, 0, 0, 9, 1)
+        self.gridLayout.addWidget(self.tableView, 0, 0, 11, 1)
         self.pushButton_insertFromText = QtWidgets.QPushButton(self.centralWidget)
         self.pushButton_insertFromText.setMinimumSize(QtCore.QSize(0, 40))
         self.pushButton_insertFromText.setMaximumSize(QtCore.QSize(91, 16777215))
@@ -54,16 +54,22 @@ class Ui_MainWindow(object):
         self.label.setWordWrap(True)
         self.label.setObjectName("label")
         self.gridLayout.addWidget(self.label, 6, 1, 1, 1)
+        self.checkBox_ppi = QtWidgets.QCheckBox(self.centralWidget)
+        self.checkBox_ppi.setObjectName("checkBox_ppi")
+        self.gridLayout.addWidget(self.checkBox_ppi, 7, 1, 1, 1)
+        self.checkBox_literature = QtWidgets.QCheckBox(self.centralWidget)
+        self.checkBox_literature.setObjectName("checkBox_literature")
+        self.gridLayout.addWidget(self.checkBox_literature, 8, 1, 1, 1)
         self.pushButton_download = QtWidgets.QPushButton(self.centralWidget)
         self.pushButton_download.setMinimumSize(QtCore.QSize(0, 40))
         self.pushButton_download.setMaximumSize(QtCore.QSize(91, 40))
         self.pushButton_download.setObjectName("pushButton_download")
-        self.gridLayout.addWidget(self.pushButton_download, 7, 1, 1, 1)
+        self.gridLayout.addWidget(self.pushButton_download, 9, 1, 1, 1)
         self.pushButton_openExistingData = QtWidgets.QPushButton(self.centralWidget)
         self.pushButton_openExistingData.setMinimumSize(QtCore.QSize(0, 40))
         self.pushButton_openExistingData.setMaximumSize(QtCore.QSize(91, 40))
         self.pushButton_openExistingData.setObjectName("pushButton_openExistingData")
-        self.gridLayout.addWidget(self.pushButton_openExistingData, 8, 1, 1, 1)
+        self.gridLayout.addWidget(self.pushButton_openExistingData, 10, 1, 1, 1)
         self.groupBox_2 = QtWidgets.QGroupBox(self.centralWidget)
         self.groupBox_2.setMaximumSize(QtCore.QSize(16777215, 80))
         self.groupBox_2.setObjectName("groupBox_2")
@@ -84,10 +90,10 @@ class Ui_MainWindow(object):
         self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName("progressBar")
         self.gridLayout_2.addWidget(self.progressBar, 1, 0, 1, 2)
-        self.gridLayout.addWidget(self.groupBox_2, 9, 0, 1, 1)
+        self.gridLayout.addWidget(self.groupBox_2, 11, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralWidget)
         self.menuBar = QtWidgets.QMenuBar(MainWindow)
-        self.menuBar.setGeometry(QtCore.QRect(0, 0, 676, 21))
+        self.menuBar.setGeometry(QtCore.QRect(0, 0, 653, 21))
         self.menuBar.setObjectName("menuBar")
         self.menuFile = QtWidgets.QMenu(self.menuBar)
         self.menuFile.setObjectName("menuFile")
@@ -137,6 +143,9 @@ class Ui_MainWindow(object):
         self.label_3.setText(_translate("MainWindow", "Disease profile:"))
         self.pushButton_set_disease_profile.setText(_translate("MainWindow", "Change"))
         self.label.setText(_translate("MainWindow", "Input a list of gene identifiers"))
+        self.checkBox_ppi.setText(_translate("MainWindow", "Protein-protein\n"
+"interactions"))
+        self.checkBox_literature.setText(_translate("MainWindow", "Literature"))
         self.pushButton_download.setText(_translate("MainWindow", "Download\n"
 "druggability data"))
         self.pushButton_openExistingData.setText(_translate("MainWindow", "Open existing\n"

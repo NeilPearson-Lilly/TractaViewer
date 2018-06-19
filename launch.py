@@ -51,6 +51,10 @@ sheet_order = ['External data input', 'Basic information', 'Buckets', 'GTEX', 'B
                'Core fitness', 'SM Druggability', 'AB-ability', 'Feasibility', 'Existing drugs', 'Drug toxicology', 
                'Pharos', 'GWAS', 'Protein-protein interactions', 'Literature']
 
+# We're going to put these in a separate file and not display these in the GUI, because they bring everything to a crawl
+# when we're working with more than a few targets. Worth pulling down though. 
+unacceptably_large_sheets = ['Protein-protein interactions', 'Literature']
+
 # The following columns should be represented as booleans in model views:
 bool_cols = ['GPCR', 'Predicted membrane protein', 'Predicted secreted protein', 'Surfaceome membership (human)',
              'Surfaceome membership (mouse)', 'Mutational cancer driver genes',
@@ -77,9 +81,13 @@ class Downloader(QThread):
     got_data = pyqtSignal(object)
     warnings = pyqtSignal(str)
     
-    def __init__(self, api_keys, organism="human", gene_family_query_level="node"):
+    def __init__(self, api_keys, literature, ppi, organism="human", gene_family_query_level="node"):
         super(QThread, self).__init__()
         self.api_keys = api_keys
+        # These get tagged as True if the appropriate checkboxes are tagged in the GUI. We do this to give the option of
+        # not downloading these large but potentially useful data-dumps. 
+        self.get_literature = literature
+        self.get_ppi = ppi
         
         self.disease_profile = None
         self.input_data = None
@@ -169,6 +177,8 @@ class Downloader(QThread):
         self.opentargets_datatypes = {}
         self.pdb_to_uniprot = None
         self.pdb_data = None
+        self.ppi_data = None
+        self.drug_tox_data = None
         self.dgidb_interactions = None
         self.chembl_interactions = None
         self.t3db_toxins = None
@@ -687,7 +697,8 @@ class Downloader(QThread):
                                  # 'Predicted secreted proteins'
                                  ]
         self.existingdrugscols = ['series', 'HGNC Name', 'GeneID', 'Disease', 'Association score', 'Drug name',
-                                  'Molecule type', 'Max clinical phase', 'Drug ID', 'Withdrawn']
+                                  'Molecule type', 'Max clinical phase', 'Boxed warning', 'Drug ID', 'Withdrawn', 
+                                  'Withdrawn reason', 'Withdrawn country', 'Withdrawn year']
         self.pharoscols = ['series', 'HGNC Name', 'GeneID', 'Pharos query', 'Pharos ID', 'Druggable class', 'Pharos',
                            'ChEMBL drug', 'ChEMBL ligand', 'ChEMBL low-activity ligand']
         self.gwascols = ['series', 'HGNC Name', 'GeneID', 'Source', 'Study name', 'ID', 'Phenotypes', 'Highest P-value',
@@ -839,8 +850,8 @@ class Downloader(QThread):
                 
                 # Get protein-protein interaction data
                 # This adds a HUGE amount of stuff to the output. Disable for now.
-                # print("protein-protein")
-                # self.get_protein_protein_interactions(ind, target, displayname)
+                print("protein-protein")
+                self.get_protein_protein_interactions(ind, target, displayname)
                 
                 # Get drug toxicology data
                 print("drug tox")
@@ -1828,9 +1839,9 @@ class Downloader(QThread):
                                 pass
                         if ev.get('drug'):
                             try:
-                                # Bear in mind that many - probably most - targets won't have any known drugs! 
+                                # Bear in mind that many targets won't have any known drugs! 
                                 new_ev_row = {'series': target['series'],
-                                              'Boxed warning': 0,
+                                              'Boxed warning': False,
                                               'GeneID': target['GeneID'],
                                               'HGNC Name': target['HGNC Name'] if 'HGNC Name' in target else None,
                                               'OpenTargets query': target['GeneID'],
@@ -1841,7 +1852,13 @@ class Downloader(QThread):
                                               'Molecule type': ev.get('drug').get('molecule_type') or 'Unknown',
                                               'Max clinical phase': ev.get('drug').get('max_phase_for_all_diseases'). \
                                                                         get('label') or 0,
-                                              'Drug ID': ev.get('drug').get('id') or 'Unnamed drug'}
+                                              'Drug ID': ev.get('drug').get('id') or 'Unnamed drug',
+                                              'Withdrawn reason': ev.get('drug').get('withdrawn_reason'),
+                                              'Withdrawn country': ev.get('drug').get('withdrawn_country'),
+                                              'Withdrawn year': ev.get('drug').get('withdrawn_year')
+                                              }
+                                if new_ev_row['Withdrawn reason']:
+                                    new_ev_row['Withdrawn'] = True
                                 # Has this drug been withdrawn?
                                 if new_ev_row.get('Drug name'):
                                     if str(new_ev_row['Drug name']).capitalize() in self.withdrawn_withdrawn[
@@ -1906,20 +1923,20 @@ class Downloader(QThread):
                         colname = re.sub("_", " ", datatype).capitalize()
                         self.targets.set_value(index=ind, col=colname, value=drug2clin_evidence[datatype])
                 
-                if literature_evidence:
+                if literature_evidence and self.get_literature:
                     self.literature = pd.concat([self.literature, pd.DataFrame(literature_evidence)])
                 
                 if not drug_found:
                     # If no drugs found, leave a row in self.existing_drug_data explicitly stating it.
-                    new_dis_row = {
+                    new_drug_row = {
                         'series': target['series'],
                         'GeneID': target['GeneID'],
                         'HGNC Name': target['HGNC Name'],
                         'OpenTargets query': target['GeneID'],
                         'Drug name': "No existing drugs found",
-                        'Boxed warning': 0
+                        'Boxed warning': False
                     }
-                    self.existing_drug_data = self.existing_drug_data.append(new_dis_row, ignore_index=True)
+                    self.existing_drug_data = self.existing_drug_data.append(new_drug_row, ignore_index=True)
                 
                 if not disease_found:
                     # If no diseases found, leave a row explicitly stating it.
@@ -2143,7 +2160,7 @@ class Downloader(QThread):
     def get_protein_protein_interactions(self, ind, target, displayname):
         # Query BioGRID for protein-protein interactions.
         try:
-            if target['HGNC Name']:
+            if target['HGNC Name'] and self.get_ppi:
                 self.emit_download_status(target, displayname, "protein-protein interactions")
                 url = "https://webservice.thebiogrid.org/interactions/?accesskey=" + self.api_keys[
                     'biogrid_key'] + "&taxId=9606&includeHeader=true&interSpeciesExcluded=true&geneList=" + target[
@@ -2183,7 +2200,7 @@ class Downloader(QThread):
         # This is some great stuff and I'm really pleased to have found it. 
         try:
             if target['Uniprot ID']:
-                df = self.t3db_drug_moas[self.t3db_drug_moas['Target UniProt ID'] == target['Uniprot ID']]
+                df = self.t3db_drug_moas[self.t3db_drug_moas['Target UniProt ID'] == target['Uniprot ID']].copy()
                 # Easiest thing in the world. Now add back in the usual IDs, and we're almost there.
                 idcols = ['series', 'GeneID', 'HGNC Name']
                 for col in idcols:
@@ -2194,6 +2211,8 @@ class Downloader(QThread):
                 # Swap those IDs to be at the front
                 df = df[df.columns.tolist()[-3:] + df.columns.tolist()[:-3]]
                 self.drug_tox_data = pd.concat([self.drug_tox_data, df], ignore_index=True)
+                # Got to force these columns to stay in order
+                self.drug_tox_data = self.drug_tox_data[idcols + [i for i in df.columns.tolist() if i not in idcols]]
         except Exception as e:
             print("Exception in PDB structure function:")
             print(e)
@@ -2208,111 +2227,87 @@ class Downloader(QThread):
         # different sheets. Do it at the end here to minimise potential for error and confusion. 
         # Input data sheet
         # All that really matters here is that these few columns go first, in this order:
+        sheets_by_name = OrderedDict()
         core_cols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID']
         self.input_data = self.input_data[[i for i in core_cols if i in self.input_data.columns.tolist()] +
                                           [i for i in self.input_data.columns.tolist() if i not in core_cols]]
+        sheets_by_name['External data input'] = self.input_data
         # Basic information sheet 
         print("Prepping output sheets")
         print("basic")
-        basicinfo = self.targets[self.basicinfocols].copy()
+        sheets_by_name['Basic information'] = self.targets[self.basicinfocols].copy()
         # Buckets sheet
         print("buckets")
-        bucketsheet = self.targets[self.bucketcols].copy()
+        sheets_by_name['Buckets'] = self.targets[self.bucketcols].copy()
         # Safety risk sheet
         print("safety")
-        gtexsheet = self.targets[self.gtexcols].copy()
+        sheets_by_name['GTEX'] = self.targets[self.gtexcols].copy()
         # Barres mouse sheet
         print("barres mouse")
-        barresmousesheet = self.targets[self.barresmousecols]
+        sheets_by_name['Barres mouse'] = self.targets[self.barresmousecols]
         # Barres human sheet
         print("barres human")
-        barreshumansheet = self.targets[self.barreshumancols]
+        sheets_by_name['Barres human'] = self.targets[self.barreshumancols]
         # HPA enrichment sheet
         print("hpa enrichment")
-        hpaenrichmentsheet = self.targets[self.hpaenrichmentcols + ["HPA " + i for i in self.hpa_all_tissues]]
+        sheets_by_name['HPA Enrichment'] = self.targets[
+            self.hpaenrichmentcols + ["HPA " + i for i in self.hpa_all_tissues]]
         # Disease associations sheet
         print("risk")
-        riskfactorssheet = self.targets[self.riskfactorcols].copy()
+        sheets_by_name['Risk factors'] = self.targets[self.riskfactorcols].copy()
         # Actually, this is WAY simpler:
         # Columns specified in order to set their printed order
         print("disease")
         if self.disease_association_data.columns.tolist():
             print("GOT COLS")
             print(self.disease_association_data.columns.tolist())
-            diseasesheet = self.disease_association_data[self.diseasecols]
+            sheets_by_name['Disease associations'] = self.disease_association_data[self.diseasecols]
         # MGI mouse sheet
         print("jaxlab")
-        jacksonsheet = self.jackson_lab_data[self.jacksonlabcols]
+        sheets_by_name['MGI mouse'] = self.jackson_lab_data[self.jacksonlabcols]
         # CanSAR sheet
         print("cansar")
-        cansarsheet = self.targets[self.cansarcols]
+        sheets_by_name['CanSAR'] = self.targets[self.cansarcols]
         # PDB data sheet
         print("pdb")
-        pdbsheet = self.pdb_data.copy()  # No further modification needed on this one - it's grown in a safe manner.
+        sheets_by_name['Protein structures'] = self.pdb_data.copy()  # No mods needed - it's grown in a safe manner.
         # Core fitness gene sheet
         print("core fitness")
-        corefitnesssheet = self.targets[self.corefitnesscols]
+        sheets_by_name['Core fitness'] = self.targets[self.corefitnesscols]
         # Druggability sheet
         print("sm druggability")
-        druggability = self.targets[self.druggabilitycols].copy()
+        sheets_by_name['SM Druggability'] = self.targets[self.druggabilitycols].copy()
         # AB-ability sheet
         print("antibodyability")
-        antibodyability = self.targets[self.antibodyabilitycols].copy()
+        sheets_by_name['AB-ability'] = self.targets[self.antibodyabilitycols].copy()
         # Feasibility sheet
         print("feasibility")
-        feasibility = self.targets[self.feasibilitycols].copy()
+        sheets_by_name['Feasibility'] = self.targets[self.feasibilitycols].copy()
         # Existing drugs sheet
         # Columns specified in order to set their printed order
         print("drugs")
         if self.existing_drug_data.columns.tolist():
-            existingdrugssheet = self.existing_drug_data[self.existingdrugscols]
             # This sheet appears to have duplicate rows sometimes in the final rendition. 
-            existingdrugssheet.drop_duplicates()
+            sheets_by_name['Existing drugs'] = self.existing_drug_data[self.existingdrugscols].drop_duplicates()
         # Drug toxicology sheet
-        drugtox = self.drug_tox_data.copy()  # No further modification needed on this one - it's grown in a safe manner.
+        sheets_by_name['Drug toxicology'] = self.drug_tox_data.copy()  # No mods - grown in a safe manner.
         # Pharos sheet
         print("pharos")
-        pharos = self.targets[self.pharoscols].copy()
+        sheets_by_name['Pharos'] = self.targets[self.pharoscols].copy()
         # GWAS sheet
         # Columns specified in order to set their printed order
         print("gwas")
         if self.gwas_data.columns.tolist():
-            gwassheet = self.gwas_data[self.gwascols]
+            sheets_by_name['GWAS'] = self.gwas_data[self.gwascols]
         # Protein-protein interaction data sheet
         # This gives us a pretty huge output sheet. I may switch this off in the future. 
-        print("protein-protein interactions")
-        ppisheet = self.ppi_data.copy()  # No further modification needed on this one - it's grown in a safe manner.
+        if self.get_ppi:
+            print("protein-protein interactions")
+            sheets_by_name['Protein-protein interactions'] = self.ppi_data.copy()  # No mods - grown in a safe manner.
         # literature
-        litsheet = self.literature[self.literaturecols].copy()
-        
-        print("Putting sheets together in a meaningful order")
-        
-        sheets_by_name = OrderedDict()
-        sheets_by_name['External data input'] = self.input_data
-        sheets_by_name['Basic information'] = basicinfo
-        sheets_by_name['Buckets'] = bucketsheet
-        sheets_by_name['GTEX'] = gtexsheet
-        sheets_by_name['Barres mouse'] = barresmousesheet
-        sheets_by_name['Barres human'] = barreshumansheet
-        sheets_by_name['HPA Enrichment'] = hpaenrichmentsheet
-        sheets_by_name['Risk factors'] = riskfactorssheet
-        if self.disease_association_data.columns.tolist():
-            sheets_by_name['Disease associations'] = diseasesheet
-        sheets_by_name['MGI mouse'] = jacksonsheet
-        sheets_by_name['CanSAR'] = cansarsheet
-        sheets_by_name['Protein structures'] = pdbsheet
-        sheets_by_name['Core fitness'] = corefitnesssheet
-        sheets_by_name['SM Druggability'] = druggability
-        sheets_by_name['AB-ability'] = antibodyability
-        sheets_by_name['Feasibility'] = feasibility
-        if self.existing_drug_data.columns.tolist():
-            sheets_by_name['Existing drugs'] = existingdrugssheet
-        sheets_by_name['Drug toxicology'] = drugtox
-        sheets_by_name['Pharos'] = pharos
-        if self.gwas_data.columns.tolist():
-            sheets_by_name['GWAS'] = gwassheet
-        sheets_by_name['Protein-protein interactions'] = ppisheet
-        sheets_by_name['Literature'] = litsheet
+        if self.get_literature:
+            print("literature")
+            sheets_by_name['Literature'] = self.literature[self.literaturecols].copy()
         
         # Covert numbers to numeric?
         # for i in sheets_by_name:
@@ -2982,19 +2977,18 @@ class Downloader(QThread):
     def modality_bucket(self, target, druggability, antibodyability):
         # This bucket is - for the moment, at least - simpler than the others, largely because it can make decisions 
         # based on what other bucketing processes have reported.
-        if druggability <= 5 and antibodyability <= 3:
-            return 1
-        elif druggability <= 5:
-            return 2
-        elif antibodyability <= 3:
-            return 3
-        elif antibodyability == 7 and druggability == 8:
-            # If there are specifically no data available both for druggability AND subcellular location, return 4. 
-            return 5
-        else:
+        score = 0
+        if druggability <= 5:
+            # Plausible small-molecule druggability
+            score += 3
+        if antibodyability <= 3:
+            # Plausible AB-ability
+            score += 2
+        if antibodyability < 7 and druggability < 8:
             # If there is at least some information available but none of it indicates suitability for small-molecule
             # OR antibody modalities, return this.
-            return 4
+            score += 1
+        return 7 - score
 
 
 class PandasModel(QtCore.QAbstractTableModel):
@@ -3214,7 +3208,7 @@ class Ui_ViewDataDialog(object):
             self.tabs = dict()
             self.tableViews = dict()
             self.verticalLayouts = dict()
-            for sheet in sheet_order:
+            for sheet in [i for i in sheet_order if i not in unacceptably_large_sheets]:
                 if sheet in self.sheetnames:
                     print("Setting up tab for " + sheet)
                     self.tabs[sheet] = QtWidgets.QWidget()
@@ -3341,7 +3335,7 @@ class DataWindow(QDialog):
         self.make_models()
     
     def make_models(self):
-        for sheet in self.data:
+        for sheet in [i for i in self.data if i not in unacceptably_large_sheets]:
             try:
                 checkbox_col = False
                 ls = self.data[sheet]['series'].tolist()
@@ -3968,7 +3962,9 @@ class MainWindow(QMainWindow):
         self.api_keys = self.read_api_keys()
         self.ui.actionSettings.triggered.connect(self.launch_settings_dialog)
         
-        self.downloaderThread = Downloader(self.api_keys)
+        self.downloaderThread = Downloader(api_keys=self.api_keys, 
+                                           literature=self.ui.checkBox_literature.isChecked(),
+                                           ppi=self.ui.checkBox_ppi.isChecked())
         self.downloaderThread.progbar_update.connect(self.update_progbar)
         self.downloaderThread.status.connect(self.update_status)
         self.downloaderThread.got_data.connect(self.download_finished)
