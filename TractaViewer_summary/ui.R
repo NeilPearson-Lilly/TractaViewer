@@ -9,7 +9,7 @@ library(shiny)
 # library(shinyRGL)
 library(plotly)
 
-dimensions = c("SM.Druggability", "Safety", "Feasibility", "AB.ability", "Modality")
+dimensions = c("SM Druggability", "Safety", "Feasibility", "AB-ability", "Modality")
 
 
 shinyUI(fluidPage(

@@ -9,6 +9,7 @@ library(shiny)
 library(plotly)
 library(plyr)
 library(dplyr)
+library(readxl)
 
 options(shiny.maxRequestSize=30*1024^2)
 
@@ -37,31 +38,28 @@ shinyServer(function(input, output) {
     print(infile)
     if (fl != infile) {
       fl <<- infile
-  
-      sheets <- openxlsx::getSheetNames(fl)
-      xl <- lapply(sheets,openxlsx::read.xlsx,xlsxFile=fl)
-      names(xl) <- sheets
-      buckets <<- as.data.frame(xl['Buckets'])
+      buckets <<- read_excel(fl, sheet = "Buckets")
       colnames(buckets) <<- colnames(buckets) %>% stringr::str_replace_all("Buckets.","") # A bit of cleanup needed
       colnames(buckets) <<- colnames(buckets) %>% stringr::str_replace_all(".bucket","")
       # We want to count the number of genes falling into each dimension - because that's going to be our point
       # size. (Plotly can probably work this out if asked, but doing it myself makes a bit more sense to me).
-      # freqs <<- plyr::count(buckets, intersect(colnames(buckets), c("SM.Druggability", "Safety", "Feasibility", "AB.ability", "Modality")))
       print("File read")
     }
     
     # Need to re-do freqs calculation here.
     # If we don't, we'll possibly get multiple points appearing at some grid positions - because records are being split by 
     # buckets we aren't currently seeing.
-    # Don't remember why I didn't do this before. Hopefully not because it's too slow when given large numbers of targets.
-    freqs <<- plyr::count(buckets, intersect(colnames(buckets), c(input$dim1, input$dim2, input$dim3)))
-    freqs$Overall.score <<- apply(freqs[c(input$dim1, input$dim2, input$dim3)], 1, mean)
+    cnames = make.names(c(input$dim1, input$dim2, input$dim3, "n"))
+    print(cnames)
+    freqs <- buckets %>% group_by(get(input$dim1), get(input$dim2), get(input$dim3)) %>% tally()
+    colnames(freqs) = cnames
+    freqs$Overall.score <- apply(freqs[cnames[1:3]], 1, mean)
     
     # This turns out to be by far the easiest way of dealing with a dynamic range of possible point sizes.
     szs = c(15, 15)
-    if (max(freqs$freq) < 3) {
+    if (max(freqs$n) < 3) {
       szs = c(10, 15)
-    } else if (max(freqs$freq) < 10) {
+    } else if (max(freqs$n) < 10) {
       szs = c(10, 30)
     } else {
       szs = c(5, 50)
@@ -75,23 +73,22 @@ shinyServer(function(input, output) {
       pad = 4
     )
     
-    plot_ly(freqs,
-            x = as.formula(paste("~", input$dim1, sep = "")),  # If it's stupid but it works, it ain't stupid.
-            y = as.formula(paste("~", input$dim2, sep = "")),
-            z = as.formula(paste("~", input$dim3, sep = "")),
-            size = ~freq, 
+    plot_ly(as.data.frame(freqs),  # This won't play nice with tibbles, it has to have a data frame. 
+            type = "scatter3d",
+            x = as.formula(paste0("~", cnames[1])),
+            y = as.formula(paste0("~", cnames[2])),
+            z = as.formula(paste0("~", cnames[3])),
+            size = ~n,
             color = ~Overall.score,
-            # marker = list(symbol = 'circle', sizemode = 'diameter', showscale = TRUE), 
             marker = list(symbol = 'circle', sizemode = 'diameter'),
             colors=c("green", "red"),
             sizes = szs,
             hoverinfo = 'text',
-            text = ~paste(input$dim1, ':', get(input$dim1), 
-                          '<br>', input$dim2, ':', get(input$dim2),
-                          '<br>', input$dim3, ':', get(input$dim3),
-                          '<br>Num. targets:', freq, sep = "")
-            ) %>%
-      add_markers()
+            text = ~paste(input$dim1, ':', get(cnames[1]),
+                          '<br>', input$dim2, ':', get(cnames[2]),
+                          '<br>', input$dim3, ':', get(cnames[3]),
+                          '<br>Num. targets:', n, sep = "")
+    ) %>% add_markers()
   })
   
   output$targetsHoverTable <- renderTable({
@@ -101,7 +98,7 @@ shinyServer(function(input, output) {
     targets = buckets %>% filter(get(input$dim1) == eventdata[1, "x"] & 
                                    get(input$dim2) == eventdata[1, "y"] & 
                                    get(input$dim3) == eventdata[1, "z"])
-    targets[c("series", "HGNC.Name", "GeneID")]
+    targets[c("series", "HGNC Name", "GeneID")]
   })
   
   output$click <- renderPrint({
