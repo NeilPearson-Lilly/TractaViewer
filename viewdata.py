@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-#
 # Created by: PyQt5 UI code generator 5.5
 #
 # WARNING! All changes made in this file will be lost!
@@ -99,7 +98,7 @@ class Ui_ViewDataDialog(object):
 
     def retranslateUi(self, ViewDataDialog):
         _translate = QtCore.QCoreApplication.translate
-        ViewDataDialog.setWindowTitle(_translate("ViewDataDialog", "Dialog"))
+        ViewDataDialog.setWindowTitle(_translate("ViewDataDialog", "Data viewer"))
         self.label.setText(_translate("ViewDataDialog", "Enter a list of genes to restrict data"))
         self.pushButton_search.setText(_translate("ViewDataDialog", "Search"))
         self.pushButton_clear.setText(_translate("ViewDataDialog", "Clear"))

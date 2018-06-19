@@ -3291,7 +3291,7 @@ class Ui_ViewDataDialog(object):
     
     def retranslateUi(self, ViewDataDialog):
         _translate = QtCore.QCoreApplication.translate
-        ViewDataDialog.setWindowTitle(_translate("ViewDataDialog", "Dialog"))
+        ViewDataDialog.setWindowTitle(_translate("ViewDataDialog", "Data viewer"))
         self.label.setText(_translate("ViewDataDialog", "Enter a list of genes to restrict data"))
         self.pushButton_search.setText(_translate("ViewDataDialog", "Search"))
         self.pushButton_clear.setText(_translate("ViewDataDialog", "Clear"))
@@ -3552,6 +3552,7 @@ class TextInsertDialog(QDialog):
         super(TextInsertDialog, self).__init__()
         self.ui = textinsert.Ui_Dialog()
         self.ui.setupUi(self)
+        self.setWindowIcon(QIcon('logo2.png'))
         self.target_list = []
         self.ui.lineEdit.setText(str(len(self.target_list)) + " targets")
         self.ui.textEdit.textChanged.connect(self.parse_gene_list)
@@ -3572,6 +3573,7 @@ class DiseaseProfileSelectorDialog(QDialog):
             super(DiseaseProfileSelectorDialog, self).__init__()
             self.ui = disease_profile_dialog.Ui_Dialog()
             self.ui.setupUi(self)
+            self.setWindowIcon(QIcon('logo2.png'))
             self.downloader = downloader
             
             # Do this now, if not done yet. 

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-#
 # Created by: PyQt5 UI code generator 5.5
 #
 # WARNING! All changes made in this file will be lost!
@@ -56,7 +55,7 @@ class Ui_Dialog(object):
 
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
-        Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
+        Dialog.setWindowTitle(_translate("Dialog", "Gene input"))
         self.groupBox.setTitle(_translate("Dialog", "Input type"))
         self.radioButton_symbol.setText(_translate("Dialog", "HGNC Symbol"))
         self.radioButton_ensemblID.setText(_translate("Dialog", "Ensembl ID"))
