@@ -31,19 +31,12 @@ shinyUI(fluidPage(
                   "Excel file",
                   ".xlsx")
       ),
-      selectInput(
-        "dim1", "Metric 1",
-        dimensions, dimensions[1]
-      ),
-      selectInput(
-        "dim2", "Metric 2",
-        dimensions, dimensions[2]
-      ),
-      selectInput(
-        "dim3", "Metric 3",
-        dimensions, dimensions[3]
-      ),
-      submitButton("Apply Changes", icon("refresh"))
+      
+      selectInput(inputId = "dim1", label = "Metric 1", choices = NULL),
+      selectInput(inputId = "dim2", label = "Metric 2", choices = NULL),
+      selectInput(inputId = "dim3", label = "Metric 3", choices = NULL)
+      # ,
+      # submitButton("Apply Changes", icon("refresh"))
       # tags$hr(),
       # checkboxInput("header", "Header", TRUE)
     ),
