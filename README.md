@@ -20,21 +20,26 @@ OpenTargets: https://blog.opentargets.org/api-getting-started-1/
 
 OpenFDA: https://open.fda.gov/api/reference/
 
-BioGRID: https://wiki.thebiogrid.org/doku.php/biogridrest
-
 ### Usage
 
 TractaViewer is capable of accepting lists of targets in the form of HGNC names, Ensembl IDs, UniProt IDs, or any combination of those 3. Choose an Excel or CSV file with this information and TractaViewer will automatically pick out the appropriate columns, provided that their column headers are one of "HGNC Name", "Ensembl ID", or "UniProt ID". TractaViewer can recognise some slight variations on these headers. 
 
 You may also input a list of targets by copy-pasting text as input, but in this case you must specify what kind of identifiers you are providing.
 
-It is possible to supply more than one input file or target list. Subsequent target lists will be appended to the bottom of the existing list shown in the main window after you select your first list of targets. 
+It is possible to supply more than one input file or target list. Subsequent target lists will be appended to the bottom of the existing list shown in the main window.
+
+##### New modality check
+
+Users may, optionally, choose to specify whether modalities involving protein degradation and antagonism/inhibition of protein expression are appropriate for a given target. (Since this is determined largely by therapeutic intent, this is best specified by the user). To specify a target as suitable for these methods, create a column named “New modality check” in the input sheet. Any value in this column indicates suitability for new modalities; leaving it blank indicates unsuitability. TractaViewer will function as normal if this column is not supplied, but the range of New modality bucket outcomes will be more limited. 
+
+##### Disease profiles
 
 We generally recommend that you set up a disease profile. This facilitates a better calculation of the relative safety scores for your targets. To set up a disease profile, click the "Change" button in the main window, and select the pertinent tissues and cell types (if any) for your disease in the dialog that appears. Give your disease profile a memorable name. This profile will be used by default until you create a different one; previous profiles are retained, and remain available after you switch to another.   
 
 Once your list of targets is complete, begin data-mining by clicking the "Download druggability data" button. A dialog will appear, asking where you wish to save output. Progress through your target list is then indicated at the bottom of the main window.
 
-Upon completion of data-mining, a large tabbed data-browser dialog will appear. This can be used to re-order the data according to certain findings, to search for data from certain genes on the list, or to select a subset of genes for the production of visual HTML reports. When this happens, mined data is also saved to the location specified earlier, as an Excel file. The data-browser can be re-opened for older output using the "Open existing druggability data" button. This will also re-populate the input area with the original list of targets. 
+Upon completion of data-mining, a large tabbed data-browser dialog will appear. This can be used to re-order the data according to certain findings, to search for data from certain genes on the list, or to select a subset of genes for the production of visual HTML reports. When this happens, mined data is also saved to the location specified earlier, as an Excel file. The data-browser can be re-opened for older output using the "Open existing druggability data" button. This will also re-populate the input area with the original list of targets.
+ 
 
 ### Example output
 
