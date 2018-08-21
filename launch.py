@@ -76,6 +76,17 @@ def uniq(lst):
     return list(set(lst))
 
 
+def flatten(ls):
+    # Recursively turn a list of lists into a simple list
+    if isinstance(ls, list):
+        if len(ls) == 0:
+            return []
+        first, rest = ls[0], ls[1:]
+        return flatten(first) + flatten(rest)
+    else:
+        return [ls]
+
+
 class Downloader(QThread):
     progbar_update = pyqtSignal(int)
     status = pyqtSignal(str)
@@ -184,6 +195,7 @@ class Downloader(QThread):
         self.drug_tox_data = None
         self.dgidb_interactions = None
         self.chembl_interactions = None
+        self.iuphar_gene_ligand_interactions = None
         self.t3db_toxins = None
         self.t3db_moas = None
         self.t3db_drug_moas = None
@@ -401,6 +413,11 @@ class Downloader(QThread):
             self.chembl_interactions = pd.read_csv("Data/chembl_drugtargets_named-18_13_46_02.csv", 
                                                    encoding="ISO-8859-1")
         
+        # IUPHAR gene-ligand interaction database
+        self.iuphar_gene_ligand_interactions = pd.read_csv("Data/IUPHAR_ligand-gene_interactions.csv")
+        self.iuphar_gene_ligand_interactions = self.iuphar_gene_ligand_interactions[
+            self.iuphar_gene_ligand_interactions["target_species"] == "Human"]
+        
         # Read these t3db things - toxicity database t3db.ca
         if not self.t3db_toxins:
             self.status.emit("Reading T3DB toxicology data...")
@@ -608,7 +625,7 @@ class Downloader(QThread):
                        'Has withdrawn drug', 'Withdrawn drug list',
                        'Membrane proteins predicted by MDM', 'GPCRHMM predicted membrane proteins', '# TM segments',
                        'Predicted secreted proteins', 'Mutational cancer driver genes',
-                       'COSMIC somatic mutations in cancer genes', 'Gene family ID',
+                       'COSMIC somatic mutations in cancer genes', 'Gene family', 'Gene family ID', 'Ligand',
                        'Endogenous ligand', 'Rare diseases', 'ORPHANET', 'GWAS catalogue', 'PHEWAS catalogue',
                        'Core fitness gene', 'CRISPR-screened core fitness gene', 'OGEE human essential gene',
                        'HPA query', 'GTEX query', 'Location data query', 'DrugEBIlity query', 'Core fitness query',
@@ -649,7 +666,7 @@ class Downloader(QThread):
                        'New modality bucket'
                        ]
         self.basicinfocols = ['series', 'HGNC Name', 'GeneID', 'Approved Name', 'Previous Name', 'Synonyms',
-                              'Uniprot ID', 'Entrez ID', 'Functional summary',
+                              'Uniprot ID', 'Entrez ID', 'Gene family', 'Gene family ID', 'Functional summary',
                               'Mouse Ensembl ID', 'Mouse Uniprot ID', 'MGI Symbol',
                               'HCOP Rat', 'HCOP Worm', 'HCOP Fly', 'HCOP Zebrafish', 'HCOP Mouse',
                               'Is protein', 'RNA class', 'Top level protein classes']
@@ -702,7 +719,7 @@ class Downloader(QThread):
                                  # 'Top Druggable Domain Ensemble',
                                  'Domain ID', 'PDB', 'Is protein',
                                  # 'Druggable class', 'Pharos', 'ChEMBL drug', 'ChEMBL ligand',
-                                 'Endogenous ligand', 'Main location', 'Top level protein classes',
+                                 'Ligand', 'Endogenous ligand', 'Main location', 'Top level protein classes',
                                  'Second level protein classes',
                                  'Third level protein classes', 'Membrane proteins predicted by MDM',
                                  'GPCRHMM predicted membrane proteins', '# TM segments', 
@@ -778,6 +795,10 @@ class Downloader(QThread):
                 # (We can get TONS more from BioMart if we want to, but this is all we really need right now).
                 print("biomart")
                 self.get_biomart_annotations(ind, target, displayname)
+                
+                # Check for interactions with ligands in IUPHAR data
+                print("iuphar")
+                self.get_ligands(ind, target, displayname)
                 
                 # Human Protein Atlas.
                 print("hpa")
@@ -1013,15 +1034,15 @@ class Downloader(QThread):
                         arr = data['response']['result']['doc']['str']
                         if not isinstance(arr, list):
                             arr = [arr]
-                        approved_name = [i for i in arr if i['@name'] == "name"][0]['#text']
+                        approved_name = [i.get('#text') for i in arr if i['@name'] == "name"]
                         if pd.isnull(target['Approved Name']) and approved_name:
-                            self.targets.set_value(index=ind, col='Approved Name', value=approved_name)
+                            self.targets.set_value(index=ind, col='Approved Name', value=approved_name[0])
                             target['Approved Name'] = approved_name
                             # print("    prev names")
                             # pprint(data['response']['result']['doc']['arr'])
-                        entrez_id = [i for i in arr if i['@name'] == "entrez_id"][0]['#text']
+                        entrez_id = [i.get('#text') for i in arr if i['@name'] == "entrez_id"]
                         if pd.isnull(target['Entrez ID']) and entrez_id:
-                            self.targets.set_value(index=ind, col='Entrez ID', value=entrez_id)
+                            self.targets.set_value(index=ind, col='Entrez ID', value=entrez_id[0])
                             target['Entrez ID'] = entrez_id
                     if data.get('response').get('result').get('doc').get('arr'):
                         arr = data['response']['result']['doc']['arr']
@@ -1067,21 +1088,28 @@ class Downloader(QThread):
                         if pd.isnull(target['Gene OMIM ID']) and omim_id:
                             self.targets.set_value(index=ind, col='Gene OMIM ID', value=omim_id)
                             # GeneNames data an also tell us if this gene is in the Endogenous Ligands family. 
+                            # But that's not what we want - we want to know if the gene HAS an endogenous ligand, rather
+                            # than whether it IS one. 
                         print("    gene families")
-                        gene_families = [i['str'] for i in arr if i['@name'] == "gene_family"]
-                        if 'Endogenous ligands' in gene_families:
-                            self.targets.set_value(index=ind, col='Endogenous ligand', value=True)
-                            # Get gene family ID - we'll drill down a bit further with that shortly, then use it when 
-                            # doing some bucketing.
-                            gene_family_id = [i['int'] for i in arr if i['@name'] == "gene_family_id"]
-                            # That can have multiple entries sometimes, it turns out. Plan appropriately.
-                            print(gene_family_id)
-                            pprint(data)
-                            if gene_family_id:
-                                target['Gene family ID'] = gene_family_id
-                                self.targets.set_value(index=ind, col='Gene family ID',
-                                                       value=",".join(gene_family_id))
-                                self.get_protein_family_info(gene_family_id)
+                        gene_families = flatten([i['str'] for i in arr if i['@name'] == "gene_family"])
+                        if gene_families:
+                            target['Gene family'] = ",".join(gene_families)
+                            self.targets.set_value(index=ind, col='Gene family',
+                                                   value=target['Gene family'])
+                        # if 'Endogenous ligands' in gene_families:
+                        #     self.targets.set_value(index=ind, col='Endogenous ligand', value=True)
+                        # Get gene family ID - we'll drill down a bit further with that shortly, then use it when 
+                        # doing some bucketing.
+                        gene_family_id = flatten([i['int'] for i in arr if i['@name'] == "gene_family_id"])
+                        # That can have multiple entries sometimes, it turns out. Plan appropriately.
+                        # print(gene_family_id)
+                        # pprint(data)
+                        if gene_family_id:
+                            target['Gene family ID'] = ",".join(gene_family_id)
+                            self.targets.set_value(index=ind, col='Gene family ID',
+                                                   value=target['Gene family ID'])
+                            for fam_id in gene_family_id:
+                                self.get_protein_family_info(fam_id)
         
         except Exception as e:
             print("Exception in GeneNames function:")
@@ -1246,6 +1274,18 @@ class Downloader(QThread):
             sleep(10)
             self.get_ncbi_assays(ind, target, displayname)
     
+    def get_ligands(self, ind, target, displayname):
+        self.emit_download_status(target, displayname, "IUPHAR ligands")
+        df = pd.DataFrame()
+        if target['HGNC Name']:
+            df = self.iuphar_gene_ligand_interactions[
+                self.iuphar_gene_ligand_interactions['target_gene_symbol'] == target['HGNC Name']]
+        elif target['Uniprot ID']:
+            df = self.iuphar_gene_ligand_interactions[
+                self.iuphar_gene_ligand_interactions['target_uniprot'] == target['Uniprot ID']]
+        self.targets.set_value(index=ind, col='Ligand', value=len(df))
+        self.targets.set_value(index=ind, col='Endogenous ligand', value=len(df[df['endogenous'] == 't']))
+    
     def get_hpa_data(self, ind, target, displayname):
         try:
             if target['GeneID'] not in [None, np.nan]:
@@ -1265,7 +1305,7 @@ class Downloader(QThread):
                     except xml.parsers.expat.ExpatError as e:
                         print("  XML retrieval failed for this gene")
                     if data:
-                        pprint(data['proteinAtlas']['entry']['proteinClasses'])
+                        # pprint(data['proteinAtlas']['entry']['proteinClasses'])
                         if isinstance(data['proteinAtlas']['entry']['proteinClasses']['proteinClass'], list):
                             classes = set(
                                 [i['@name'] for i in data['proteinAtlas']['entry']['proteinClasses']['proteinClass']])
@@ -2902,10 +2942,12 @@ class Downloader(QThread):
             # We now keep a dict full of the previous results of queries to Pharos, to get around/streamline in those
             # situations.
             if uniprot_id in self.pharos_ligand_data_library:
-                if self.pharos_ligand_data_library.get(uniprot_id).get(
-                        'ChEMBL ligand') or self.pharos_ligand_data_library.get(uniprot_id).get(
-                        'ChEMBL low-activity ligand'):
+                if self.pharos_ligand_data_library.get(uniprot_id).get('ChEMBL ligand') or \
+                        self.pharos_ligand_data_library.get(uniprot_id).get('ChEMBL drug') or \
+                        self.pharos_ligand_data_library.get(uniprot_id).get('ChEMBL low-activity ligand'):
                     return True
+            elif target['Ligand'] or target['Endogenous ligand']:
+                return True
             else:
                 pharos_data = self.download_pharos_drug_and_ligand_count(uniprot_id)
                 if pharos_data:
@@ -2924,8 +2966,10 @@ class Downloader(QThread):
                         return True
         
         def has_small_molecule_ligand():
-            # Check on this field from canSAR.
-            if target['number of 3d structure with small molecule ligand']:
+            # We just checked if a target has any of a wide variety of ligands, but we only want to give higher scores 
+            # in cases where there are non-endogenous ligands. This is easy to check when I have the right data: 
+            # simply check that we have more total ligands than exclusively endogenous ligands.
+            if target['Ligand'] > target['Endogenous ligand']:
                 return True
         
         def homolog_has_ligand(uniprot_id):
@@ -3084,7 +3128,8 @@ class Downloader(QThread):
                 return True
         
         def secreted_ecm_membrane_weak_evidence():
-            if target['Surfaceome membership (human)']:  # Add further conditions as data become available...
+            if target['Surfaceome membership (human)'] or \
+                    target['Predicted membrane protein']:  # Add further conditions as data become available...
                 return True
         
         def cytoplasm():
