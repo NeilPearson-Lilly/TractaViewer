@@ -199,6 +199,7 @@ class Downloader(QThread):
         self.t3db_toxins = None
         self.t3db_moas = None
         self.t3db_drug_moas = None
+        self.verseda_secretome = None
         self.literature = None
         self.withdrawn_withdrawn = None
         self.hpa_tox_lists = {}
@@ -430,6 +431,9 @@ class Downloader(QThread):
                 [row for i, row in self.t3db_toxins.iterrows() if 'Drug' in [j['type_name'] for j in row['types']]])
             self.t3db_drug_moas = self.t3db_moas[self.t3db_moas['Toxin T3DB ID'].isin(drug_toxins['title'])]
         
+        # VerSeDa secretome genes - filtered by query to SecretomeP >= 0.9
+        self.verseda_secretome = pd.read_csv("Data/VerSeDa_HSapiens_secretedProteins.csv")
+        
         # Read a list of withdrawn drugs from the WITHDRAWN database
         if not self.withdrawn_withdrawn:
             self.withdrawn_withdrawn = pd.read_csv("Data/withdrawn_withdrawn_compounds.csv")
@@ -631,8 +635,8 @@ class Downloader(QThread):
                        'HPA query', 'GTEX query', 'Location data query', 'DrugEBIlity query', 'Core fitness query',
                        'MGI query', 'Barres lab mouse query', 'Barres lab human query', 'Pharos query', 'Pharos ID',
                        'OpenTargets query', 'GWAS query', 'GPCR', 'Predicted membrane protein',
-                       'Predicted secreted protein', 'Extracellular matrix component', 'Subcellular location summary',
-                       'Subcellular location verification',
+                       'Predicted secreted protein', 'VerSeDa secretome membership', 'Extracellular matrix component', 
+                       'Subcellular location summary', 'Subcellular location verification',
                        'Main subcellular locations', 'Additional subcellular locations', 'GOIDs',
                        'Surfaceome membership (human)', 'Surfaceome membership confidence (human)',
                        'Surfaceome membership (mouse)', 'Surfaceome membership confidence (mouse)',
@@ -734,7 +738,8 @@ class Downloader(QThread):
         self.gwascols = ['series', 'HGNC Name', 'GeneID', 'Source', 'Study name', 'ID', 'Phenotypes', 'Highest P-value',
                          'Num. markers', 'link']
         self.antibodyabilitycols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'GPCR', 'Predicted membrane protein',
-                                    'Predicted secreted protein', 'Extracellular matrix component',
+                                    'Predicted secreted protein', 'VerSeDa secretome membership', 
+                                    'Extracellular matrix component',
                                     'Subcellular location summary', 'Subcellular location verification',
                                     'Main subcellular locations', 'Additional subcellular locations', 'GOIDs',
                                     'Surfaceome membership (human)', 'Surfaceome membership confidence (human)',
@@ -831,7 +836,7 @@ class Downloader(QThread):
                 print("pdb")
                 self.get_pdb_structures(ind, target, displayname)
                 
-                #Anti-targets
+                # Anti-targets
                 print("anti-targets")
                 self.get_antitargets(ind, target, displayname)
                 
@@ -842,6 +847,10 @@ class Downloader(QThread):
                 # Is this gene in the extracellular matrix gene list?
                 print("ecm")
                 self.get_extracellular_matrix_data(ind, target, displayname)
+                
+                # Is this gene in the VerSeDa secretome gene list?
+                print("verseda secretome")
+                self.get_verseda_secretome_data(ind, target, displayname)
                 
                 # Jackson lab mouse data.
                 # There is likely to be more than one record per target here, so we'll need to use a different 
@@ -1624,6 +1633,18 @@ class Downloader(QThread):
             print("\textracellular matrix")
             if target['HGNC Name'] in self.ecm_components['Gene Symbol'].tolist():
                 self.targets.set_value(index=ind, col='Extracellular matrix component', value=True)
+    
+    def get_verseda_secretome_data(self, ind, target, displayname):
+        if target['GeneID']:
+            self.emit_download_status(target, displayname, "VerSeDa secretome genes")
+            if target['GeneID'] in self.verseda_secretome['Gene'].tolist():
+                print("\tsecreted")
+                self.targets.set_value(index=ind, col='VerSeDa secretome membership', value=True)
+        elif target['Uniprot ID']:
+            self.emit_download_status(target, displayname, "VerSeDa secretome genes")
+            if target['Uniprot ID'] in self.verseda_secretome['Uniprot'].tolist():
+                print("\tsecreted")
+                self.targets.set_value(index=ind, col='VerSeDa secretome membership', value=True)
     
     def get_jackson_lab_data(self, ind, target, displayname):
         # Query MGI, the Jackson Lab's remarkably comprehensive database system.
@@ -3115,7 +3136,7 @@ class Downloader(QThread):
             # This appears to be based on several different means of identifying tags for secreted proteins from the
             # HPA, so we can consider it a reasonably strong indicator. See
             # https://www.proteinatlas.org/humanproteome/secretome 
-            if target['Predicted secreted protein']:
+            if target['VerSeDa secretome membership']:
                 return True
         
         def ecm_strong_evidence():
@@ -3128,8 +3149,14 @@ class Downloader(QThread):
                 return True
         
         def secreted_ecm_membrane_weak_evidence():
+            # Surfaceome membership (human): already checked for stronger evidence - this leaves only weaker evidence.
+            # Surfaceome membership (mouse): this as a whole can be taken as weaker evidence.
             if target['Surfaceome membership (human)'] or \
-                    target['Predicted membrane protein']:  # Add further conditions as data become available...
+                    target['Surfaceome membership (mouse)'] or \
+                    target['Predicted membrane protein'] or \
+                    target['Predicted secreted protein'] or \
+                    target['GPCRHMM predicted membrane proteins'] or \
+                    target['Membrane proteins predicted by MDM']:  # Add further conditions as data become available...
                 return True
         
         def cytoplasm():
