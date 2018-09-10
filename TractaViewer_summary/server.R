@@ -14,7 +14,6 @@ library(readxl)
 options(shiny.maxRequestSize=30*1024^2)
 
 testfile = "../Example_output/sample_output_druggability.xlsx"
-# fl = "TEST STRING DO NOT USE OR MODIFY"
 fl = "INTENTIONALLY A STRING"
 freqs = NULL
 buckets = NULL
@@ -38,7 +37,7 @@ shinyServer(function(input, output, session) {
   })
   
   observe({
-    # I'll try to do something cleverer with this - thereshould be no need to re-read the file every time a 
+    # I'll try to do something cleverer with this - there should be no need to re-read the file every time a 
     # change is requested.
     # It can be done, and this code does it. Note that we have to assign to varibles outside the scope of this
     # function using the <<- operator. If we don't do that, values are lost, even if assigned to variables
@@ -95,7 +94,7 @@ shinyServer(function(input, output, session) {
     
     print(as.data.frame(freqs))
     
-    plot_ly(as.data.frame(freqs),  # This won't play nice with tibbles, it has to have a data frame.
+    plot_ly(as.data.frame(freqs),  # This won't play nice with tibbles; it has to have a data frame.
             type = "scatter3d",
             x = as.formula(paste0("~", cnames[1])),
             y = as.formula(paste0("~", cnames[2])),

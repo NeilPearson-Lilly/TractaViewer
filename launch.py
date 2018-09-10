@@ -128,7 +128,7 @@ class Downloader(QThread):
         self.feasibility_decision_data_types = ['Affected pathway',
                                                 'Animal model',
                                                 # 'Genetic association',
-                                                'Literature',
+                                                # 'Literature',
                                                 # 'Rna expression',
                                                 # 'Somatic mutation'
                                                 ]
@@ -186,7 +186,13 @@ class Downloader(QThread):
         self.mgi_phenotypes_to_top_level_classifications = {}
         self.identity_scores = None
         self.evalues = None
+
+        # Make lookup tables that can be dynamically filled as we go, reducing repeated querying. 
         self.pharos_ligand_data_library = {}
+        self.gene_names_to_uniprot_ids = {}
+        self.uniprot_ids_to_gene_names = {}
+        self.drugebility_data_for_uniprot_ids = {}
+        
         self.clinical_trial_data = {}
         self.opentargets_datatypes = {}
         self.pdb_to_uniprot = None
@@ -665,7 +671,7 @@ class Downloader(QThread):
                        'Human whole cortex: 45yo', 'Human whole cortex: 63yo', 'Human whole cortex: 25yo',
                        'Human whole cortex: 53yo',
                        'Assays', 'Antibodies', 'Affected pathway', 'Animal model', 'Genetic association', 'Known drug',
-                       'Literature', 'Rna expression', 'Somatic mutation',
+                       'Literature', 'Pharos literature', 'Rna expression', 'Somatic mutation',
                        'Safety bucket', 'SM Druggability bucket', 'Feasibility bucket', 'AB-ability bucket',
                        'New modality bucket'
                        ]
@@ -714,7 +720,8 @@ class Downloader(QThread):
                                'MGI Gene/Marker ID', 'Mouse associated gene symbol', 'Feature type', 'MP ID', 'Term',
                                'Top-level phenotype', 'Description']
         self.cansarcols = ['series', 'HGNC Name', 'GeneID']
-        self.antitargetcols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'Antitarget', 'Protein seq. identity (%)']
+        self.antitargetcols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'Antitarget gene name', 
+                               'Antitarget Uniprot ID', 'Protein seq. identity (%)']
         self.corefitnesscols = ['series', 'HGNC Name', 'GeneID', 'Core fitness query', 'Core fitness gene',
                                 'CRISPR-screened core fitness gene', 'OGEE human essential gene']
         self.druggabilitycols = ['series', 'HGNC Name', 'GeneID', 'DrugEBIlity query', 
@@ -734,7 +741,7 @@ class Downloader(QThread):
                                   'Molecule type', 'Max clinical phase', 'Boxed warning', 'Drug ID', 'Withdrawn', 
                                   'Withdrawn reason', 'Withdrawn country', 'Withdrawn year']
         self.pharoscols = ['series', 'HGNC Name', 'GeneID', 'Pharos query', 'Pharos ID', 'Druggable class', 'Pharos',
-                           'ChEMBL drug', 'ChEMBL ligand', 'ChEMBL low-activity ligand']
+                           'ChEMBL drug', 'ChEMBL ligand', 'ChEMBL low-activity ligand', 'Pharos literature']
         self.gwascols = ['series', 'HGNC Name', 'GeneID', 'Source', 'Study name', 'ID', 'Phenotypes', 'Highest P-value',
                          'Num. markers', 'link']
         self.antibodyabilitycols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'GPCR', 'Predicted membrane protein',
@@ -747,7 +754,8 @@ class Downloader(QThread):
         self.feasibilitycols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', "Assays", "Antibodies",
                                 # 'Affected pathway', 'Animal model',
                                 # 'Genetic association', 
-                                # 'Known drug', 'Literature',
+                                # 'Known drug', 
+                                'Literature',
                                 # 'Rna expression', 'Somatic mutation', 
                                 ] + self.feasibility_decision_data_types
         self.literaturecols = ['series', 'GeneID', 'HGNC Name', 'Uniprot ID', 'Authors', 'DOI', 'Date', 'Journal ref',
@@ -941,6 +949,11 @@ class Downloader(QThread):
         self.status.emit(
             "Downloading data for target " + str(target['series']) + ": " + displayname + "... (" + text + ")")
     
+    def emit_bucket_status(self, target):
+        # A convenience function for writing a status message to the GUI. (A different one to the download status).
+        self.status.emit(
+            "Assigning buckets for target " + str(target['series']))
+    
     def get_basic_annotations(self, ind, target):
         # Take care of filling in HGNC Name, Ensembl ID (GeneID) and UniProt ID in the most effective order.
         if not pd.isnull(target['HGNC Name']):
@@ -1102,7 +1115,7 @@ class Downloader(QThread):
                         print("    gene families")
                         gene_families = flatten([i['str'] for i in arr if i['@name'] == "gene_family"])
                         if gene_families:
-                            target['Gene family'] = ",".join(gene_families)
+                            target['Gene family'] = "|".join(gene_families)
                             self.targets.set_value(index=ind, col='Gene family',
                                                    value=target['Gene family'])
                         # if 'Endogenous ligands' in gene_families:
@@ -1114,7 +1127,7 @@ class Downloader(QThread):
                         # print(gene_family_id)
                         # pprint(data)
                         if gene_family_id:
-                            target['Gene family ID'] = ",".join(gene_family_id)
+                            target['Gene family ID'] = "|".join(gene_family_id)
                             self.targets.set_value(index=ind, col='Gene family ID',
                                                    value=target['Gene family ID'])
                             for fam_id in gene_family_id:
@@ -1285,7 +1298,7 @@ class Downloader(QThread):
     
     def get_ligands(self, ind, target, displayname):
         self.emit_download_status(target, displayname, "IUPHAR ligands")
-        df = pd.DataFrame()
+        df = pd.DataFrame(columns=['endogenous'])  # We've got to have this column, at least
         if target['HGNC Name']:
             df = self.iuphar_gene_ligand_interactions[
                 self.iuphar_gene_ligand_interactions['target_gene_symbol'] == target['HGNC Name']]
@@ -1472,11 +1485,16 @@ class Downloader(QThread):
         if target['Uniprot ID']:
             target_uniprot_ids.append(target['Uniprot ID'])
         for tuid in target_uniprot_ids:
-            self.query_drugebility(ind, tuid)
+            drugebility = self.query_drugebility(tuid)
+            if drugebility:
+                for field in drugebility:
+                    self.targets.set_value(index=ind, col=field, value=drugebility[field])
     
-    def query_drugebility(self, ind, tuid):  # tuid = target uniprot id
+    def query_drugebility(self, tuid):  # tuid = target uniprot id
+        if self.drugebility_data_for_uniprot_ids.get(tuid):
+            return self.drugebility_data_for_uniprot_ids[tuid]
         try:
-            self.targets.set_value(index=ind, col='DrugEBIlity query', value=tuid)
+            # self.targets.set_value(index=ind, col='DrugEBIlity query', value=tuid)
             response = requests.get("https://www.ebi.ac.uk/chembl/drugebility/protein/structural/" + tuid)
             if response.status_code != 200:
                 self.warnings.emit("EBI Druggability query failed with code " + str(response.status_code))
@@ -1504,22 +1522,28 @@ class Downloader(QThread):
                         # This is where things start getting interesting. What should we do if we find multiple 
                         # druggable domains tied for the highest Ensemble score? Currently we just pick the first. 
                         # print("  Tractable = " + str(df[df[0] == 'Ave. Tractable'][1].values[0]))
-                        self.targets.set_value(index=ind, col='EBI Tractable', value=druggable['Tractable'].iloc[0])
-                        self.targets.set_value(index=ind, col='EBI Druggable', value=druggable['Druggable'].iloc[0])
-                        self.targets.set_value(index=ind, col='EBI Ensemble', value=druggable['Ensemble'].iloc[0])
-                        # self.targets.set_value(index=ind, col='Top Druggable Domain Ensemble',
-                        #                        value=druggable['Ensemble'].iloc[0])
-                        self.targets.set_value(index=ind, col='Domain ID', value=druggable['Domain ID'].iloc[0])
-                        self.targets.set_value(index=ind, col='PDB', value=druggable['PDB'].iloc[0])
-                else:
-                    pass
+                        # self.targets.set_value(index=ind, col='EBI Tractable', value=druggable['Tractable'].iloc[0])
+                        # self.targets.set_value(index=ind, col='EBI Druggable', value=druggable['Druggable'].iloc[0])
+                        # self.targets.set_value(index=ind, col='EBI Ensemble', value=druggable['Ensemble'].iloc[0])
+                        # # self.targets.set_value(index=ind, col='Top Druggable Domain Ensemble',
+                        # #                        value=druggable['Ensemble'].iloc[0])
+                        # self.targets.set_value(index=ind, col='Domain ID', value=druggable['Domain ID'].iloc[0])
+                        # self.targets.set_value(index=ind, col='PDB', value=druggable['PDB'].iloc[0])
+                        returnable_data = {'DrugEBIlity query': tuid,
+                                           'EBI Tractable': druggable['Tractable'].iloc[0],
+                                           'EBI Druggable': druggable['Druggable'].iloc[0],
+                                           'EBI Ensemble': druggable['Ensemble'].iloc[0],
+                                           'Domain ID': druggable['Domain ID'].iloc[0],
+                                           'PDB': druggable['PDB'].iloc[0]}
+                        self.drugebility_data_for_uniprot_ids[tuid] = returnable_data
+                        return returnable_data
         except Exception as e:
             print("Exception in DrugEBIlity function:")
             print(e)
             traceback.print_exc()
             print("Retrying in 10 seconds...")
             sleep(10)
-            self.query_drugebility(ind, tuid)
+            self.query_drugebility(tuid)
     
     def get_cansar_data(self, ind, target, displayname):
         # We can't query canSAR directly, but we can query a file I made from it. 
@@ -1815,6 +1839,7 @@ class Downloader(QThread):
                     low_activity_ligand_count = 0
                     drug_count = 0
                     antibody_count = 0
+                    literature_count = 0
                     for link in result['links']:
                         if link['kind'] == "ix.idg.models.Ligand":
                             if "Pharmalogical Action" in [i['label'] for i in link['properties']]:
@@ -1822,8 +1847,9 @@ class Downloader(QThread):
                             if "Ligand Activity" in [i['label'] for i in link['properties']]:
                                 # Implement a threshold for ligand activity here.
                                 # Problem: thresholds are different for different kinds of proteins...
-                                ic50 = [i['numval'] for i in link['properties'] if i['label'] == "IC50"]
-                                activity = ic50[0] if ic50 else 0
+                                ec50 = [i['numval'] for i in link['properties'] if i['label'] in ["EC50", "IC50"]]
+                                # IC50/EC50 are inverse concepts, so we should only get one or the other.
+                                activity = ec50[0] if ec50 else 0
                                 threshold = self.ligand_activity_thresholds.get(druggable_class) or \
                                             self.ligand_activity_thresholds['Non-IDG']
                                 if activity >= threshold:
@@ -1833,6 +1859,8 @@ class Downloader(QThread):
                     if result.get("properties"):
                         antibody_count = len([i for i in result['properties'] if
                                               i['label'] == "IDG Tools" and i['term'] == 'Antibodies'])
+                    if result.get("publications"):
+                        literature_count = len(result['publications'])
                     
                     returnable_data = {'Pharos ID': uniprot_id,
                                        'Druggable class': druggable_class,
@@ -1840,7 +1868,8 @@ class Downloader(QThread):
                                        'ChEMBL drug': drug_count,
                                        'ChEMBL ligand': ligand_count,
                                        'ChEMBL low-activity ligand': low_activity_ligand_count,
-                                       'Antibodies': antibody_count}
+                                       'Antibodies': antibody_count,
+                                       'Pharos literature': literature_count}
                     self.pharos_ligand_data_library[uniprot_id] = returnable_data
                     return returnable_data
             except Exception as e:
@@ -2285,6 +2314,7 @@ class Downloader(QThread):
     
     def get_antitargets(self, ind, target, displayname):
         if target['Uniprot ID']:
+            self.emit_download_status(target, displayname, "Antitargets")
             i = target['Uniprot ID']
             homologs = self.get_homologs(i)
             if homologs:
@@ -2292,13 +2322,15 @@ class Downloader(QThread):
                     if i != j:
                         identity = (self.identity_scores[i][j] + self.identity_scores[j][i]) / 2
                         d = target[self.antitargetcols[:4]]
-                        d['Antitarget'] = j
+                        d['Antitarget Uniprot ID'] = j
+                        d['Antitarget gene name'] = self.get_uniprot_id_for_gene_name(j)
                         d['Protein seq. identity (%)'] = identity
                         if identity >= self.api_keys['seq_similarity_threshold']:
                             self.antitargets_data = self.antitargets_data.append(d, ignore_index=True)
             else:
                 d = target[self.antitargetcols[:4]]
-                d['Antitarget'] = None
+                d['Antitarget Uniprot ID'] = None
+                d['Antitarget gene name'] = None
                 d['Protein seq. identity (%)'] = 0
                 self.antitargets_data = self.antitargets_data.append(d, ignore_index=True)
     
@@ -2508,6 +2540,8 @@ class Downloader(QThread):
             return self.get_ensembl_id_for_gene_name(gene_name)
     
     def get_uniprot_id_for_gene_name(self, gene_name):
+        if self.gene_names_to_uniprot_ids.get(gene_name):
+            return self.gene_names_to_uniprot_ids[gene_name]
         try:
             url = "http://www.uniprot.org/uniprot/?query=gene:" + gene_name + "+AND+organism:" + \
                   self.organism + "&sort=score&format=tab"
@@ -2526,7 +2560,10 @@ class Downloader(QThread):
                         reviewed = uniprot[uniprot['Status'] == 'reviewed']
                         if len(reviewed) > 0:
                             # We want better handling of cases where there is more than one available Uniprot ID.
-                            return reviewed['Entry'].tolist()[0]
+                            uniprot_id = reviewed['Entry'].tolist()[0]
+                            self.gene_names_to_uniprot_ids[gene_name] = uniprot_id
+                            self.uniprot_ids_to_gene_names[uniprot_id] = gene_name
+                            return uniprot_id
                 else:
                     print(uniprot_data)
                 return None
@@ -2600,6 +2637,8 @@ class Downloader(QThread):
         print("WORK IN PROGRESS")
     
     def get_gene_name_for_uniprot_id(self, uniprot_id):
+        if self.uniprot_ids_to_gene_names.get(uniprot_id):
+            return self.uniprot_ids_to_gene_names[uniprot_id]
         try:
             url = "http://www.uniprot.org/uniprot/?query=accession:" + uniprot_id + "+AND+organism:" + \
                   self.organism + "&sort=score&format=tab"
@@ -2615,7 +2654,10 @@ class Downloader(QThread):
                 if uniprot_data:
                     uniprot = pd.read_table(StringIO(uniprot_data))
                     names = uniprot['Gene names'].tolist()[0].split(' ')
-                    return names[0]
+                    chosen_name = names[0]
+                    self.gene_names_to_uniprot_ids[chosen_name] = uniprot_id
+                    self.uniprot_ids_to_gene_names[uniprot_id] = chosen_name
+                    return chosen_name
         except Exception as e:
             print("Exception in UniProt ID -> HGNC name function:")
             print(e)
@@ -2635,6 +2677,7 @@ class Downloader(QThread):
         try:
             for ind, target in self.targets.iterrows():
                 print(ind)
+                self.emit_bucket_status(target)
                 safety = self.safety_bucket(target)
                 self.targets.set_value(index=ind, col='Safety bucket', value=safety)
                 druggability = self.druggability_bucket(target)
@@ -2894,6 +2937,8 @@ class Downloader(QThread):
                 return True
         
         name = target['HGNC Name']
+        if not name:
+            name = "[No gene name available]"
         # uniprot_id = target['Uniprot ID']
         # ensembl_id = target['GeneID']
         # if failed_clinical_trials(name) or drug_withdrawn(ensembl_id):
@@ -2956,6 +3001,10 @@ class Downloader(QThread):
     def druggability_bucket(self, target):
         # Score for small-molecule druggability.
         
+        def is_protein():
+            if "protein_coding" in target['RNA class'].split(", "):
+                return True
+        
         def has_ligand(uniprot_id):
             # Does this target have a ligand of any kind?
             # We may ask this question of genes that are not in our supplied list of targets, though that should be the
@@ -2976,7 +3025,7 @@ class Downloader(QThread):
                         return True
         
         def has_high_activity_ligand(uniprot_id):
-            # Same as has_ligand, but restricts to ligands passing activity thresholds only.
+            # Similar to has_ligand, but restricts to ligands passing activity thresholds only.
             if uniprot_id in self.pharos_ligand_data_library:
                 if self.pharos_ligand_data_library.get(uniprot_id).get('ChEMBL ligand'):
                     return True
@@ -2985,6 +3034,21 @@ class Downloader(QThread):
                 if pharos_data:
                     if pharos_data.get('ChEMBL ligand'):
                         return True
+        
+        def has_druggable_protein_class(uniprot_id):
+            # Similar to has_ligand, but looks at whether the target has a druggable class listed in Pharos.
+            if uniprot_id in self.pharos_ligand_data_library:
+                if self.pharos_ligand_data_library.get(uniprot_id).get('ChEMBL ligand'):
+                    return True
+            else:
+                pharos_data = self.download_pharos_drug_and_ligand_count(uniprot_id)
+                if pharos_data:
+                    if pharos_data.get('Druggable class'):
+                        return True
+        
+        def has_endogenous_ligand():
+            if target['Endogenous ligand']:
+                return True
         
         def has_small_molecule_ligand():
             # We just checked if a target has any of a wide variety of ligands, but we only want to give higher scores 
@@ -3009,9 +3073,15 @@ class Downloader(QThread):
         
         def has_druggable_pocket(uniprot_id):
             # if self.targets[self.targets['HGNC Name'] == name]['number of 3d structure druggable'].values[0]:
-            if self.cansar_data[self.cansar_data['uniprot accession'] == uniprot_id][
-                'number of 3d structure druggable'].any():
-                return True
+            if uniprot_id:
+                if self.cansar_data[self.cansar_data['uniprot accession'] == uniprot_id][
+                    'number of 3d structure druggable'].any():
+                    return True
+                # Should that fail to find anything, we can also check EBI's DrugEBIlity. 
+                drugebility = self.query_drugebility(uniprot_id)
+                if drugebility:
+                    if drugebility['EBI Druggable'] >= 0.8:
+                        return True
         
         def homolog_has_structure(uniprot_id):
             for hlog in self.get_homologs(uniprot_id):
@@ -3023,23 +3093,38 @@ class Downloader(QThread):
                 if has_druggable_pocket(hlog):
                     return True
         
+        def split_gene_families(gene_family_id):
+            # This bit of code gets used several times, so it should be a function.
+            # Why do we need it? Because there may be multiple family IDs in this string!
+            return gene_family_id.split(",")
+        
         def family_has_structure(gene_family_id):
-            # First, this input may be null, indicating that there are no gene families for this target.
-            if gene_family_id:
-                # Alternatively, there may be multiple family IDs in this string!
-                families = gene_family_id.split(",")
-                for f in families:
-                    family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
-                    if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)]['number of 3d structure'].any():
-                        return True
+            for f in split_gene_families(gene_family_id):
+                family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
+                if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)]['number of 3d structure'].any():
+                    return True
         
         def family_has_druggable_pocket(gene_family_id):
-            # There may be multiple family IDs in this string!
-            families = gene_family_id.split(",")
-            for f in families:
+            for f in split_gene_families(gene_family_id):
                 family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
                 if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)]['number of 3d structure druggable'].any():
                     return True
+        
+        def family_has_ligand(gene_family_id):
+            for f in split_gene_families(gene_family_id):
+                family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
+                for genename in family_genes:
+                    uid = self.get_uniprot_id_for_gene_name(genename)
+                    if has_ligand(uid):
+                        return True
+        
+        def family_has_high_activity_ligand(gene_family_id):
+            for f in split_gene_families(gene_family_id):
+                family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
+                for genename in family_genes:
+                    uid = self.get_uniprot_id_for_gene_name(genename)
+                    if has_high_activity_ligand(uid):
+                        return True
         
         # Now we can stack them all up into our decision tree for this bucket. 
         name = target['HGNC Name']
@@ -3050,28 +3135,39 @@ class Downloader(QThread):
                 if has_small_molecule_ligand():
                     if has_high_activity_ligand(uniprot_id):
                         return 1
+                    elif has_endogenous_ligand():
+                        return 10
                     else:
-                        return 6
+                        return 5
                 else:
                     return 8
             elif homolog_has_ligand(uniprot_id):
                 if homolog_has_high_activity_ligand(uniprot_id):
                     return 2
                 else:
-                    return 7
-            if has_structure(uniprot_id) and has_druggable_pocket(uniprot_id):
-                return 3
+                    return 6
+            if has_structure(uniprot_id):
+                if has_druggable_pocket(uniprot_id):
+                    return 3
             if homolog_has_structure(uniprot_id) and homolog_has_druggable_pocket(uniprot_id):
                 return 4
-            if family_has_structure(gene_family_id):
-                if family_has_druggable_pocket(gene_family_id):
-                    return 5
-                else:
-                    return 9
-            else:
-                return 10
-        else:
-            return 10
+            if gene_family_id:
+                if family_has_ligand(gene_family_id):
+                    if family_has_high_activity_ligand(gene_family_id):
+                        return 7
+                    else:
+                        return 8
+                if family_has_structure(gene_family_id):
+                    if family_has_druggable_pocket(gene_family_id):
+                        return 9
+            if has_druggable_protein_class(uniprot_id):
+                return 11
+            if has_structure(uniprot_id):
+                return 12
+            if is_protein():
+                return 13
+        # If nothing else has come through up to this point... 
+        return 14
     
     def feasibility_bucket(self, target):
         # Similar to other bucketing functions, I'll make a set of sub-functions that make individual component calls
@@ -3103,6 +3199,14 @@ class Downloader(QThread):
                 if len(dgidb) > 0 or len(chembl) > 0:
                     return True
         
+        def has_literature():
+            if target.get("Literature"):
+                if target['Literature'] > 0:
+                    return True
+            if target.get("Pharos literature"):
+                if target['Pharos literature'] > 0:
+                    return True
+        
         def has_data_of_type(datatype, threshold=0):
             if target.get(datatype):
                 if target[datatype] > threshold:
@@ -3116,6 +3220,8 @@ class Downloader(QThread):
         if has_protein_structure_model():
             score += 1
         if has_protein_protein_interaction_data():
+            score += 1
+        if has_literature():
             score += 1
         # if has_protein_drug_interaction_data:
         #     score += 1
