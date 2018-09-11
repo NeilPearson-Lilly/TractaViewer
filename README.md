@@ -1,4 +1,4 @@
-## TractaViewer
+﻿## TractaViewer
 
 A tool to automatically download and aggregate data relating to the suitability of a list of genes as drug development targets from a large number of databases, and present an overview of that data in a comprehensible manner. 
 
@@ -43,7 +43,7 @@ Upon completion of data-mining, a large tabbed data-browser dialog will appear. 
 
 ### Example output
 
-An example of mined data for a small set of genes (a subset of a publicly accessible list from the AMP-AD consortium) is available in the example_output directory.
+An example of mined data for a small set of genes (selected at random from the human proteome) is available in the example_output directory.
 
 ### Provenance
 
