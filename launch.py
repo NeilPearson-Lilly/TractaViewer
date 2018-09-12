@@ -3096,7 +3096,7 @@ class Downloader(QThread):
         def split_gene_families(gene_family_id):
             # This bit of code gets used several times, so it should be a function.
             # Why do we need it? Because there may be multiple family IDs in this string!
-            return gene_family_id.split(",")
+            return gene_family_id.split("|")
         
         def family_has_structure(gene_family_id):
             for f in split_gene_families(gene_family_id):
