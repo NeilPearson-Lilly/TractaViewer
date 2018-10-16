@@ -20,6 +20,8 @@ from scipy.stats import ttest_ind
 from sklearn.preprocessing import StandardScaler
 from pprint import pprint
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import xmltodict
 import glob
 import xml
@@ -46,11 +48,11 @@ pd.set_option('display.max_rows', None)
 
 # Useful variables
 disease_association_score_threshold = 0.5
-sheet_order = ['External data input', 'Basic information', 'Buckets', 'GTEX', 'Barres mouse', 'Barres human',
-               'HPA Enrichment', 'Risk factors', 'Rare disease associations', 'Common disease associations', 
-               'MGI mouse', 'CanSAR', 'Protein structures', 'Antitargets', 'Core fitness', 'SM Druggability', 
-               'AB-ability', 'Feasibility', 'Existing drugs', 'Drug toxicology', 'Pharos', 'GWAS', 
-               'Protein-protein interactions', 'Literature']
+sheet_order = ['External data input', 'Basic information', 'Buckets', 'Bucket guide', 'GTEX', 'Barres mouse', 
+               'Barres human', 'HPA Enrichment', 'Risk factors', 'Rare disease associations', 
+               'Common disease associations', 'MGI mouse', 'CanSAR', 'Protein structures', 'Antitargets', 
+               'Core fitness', 'SM Druggability', 'AB-ability', 'Feasibility', 'Existing drugs', 'Drug toxicology', 
+               'Pharos', 'GWAS', 'Protein-protein interactions', 'Literature']
 
 # We're going to put these in a separate file and not display these in the GUI, because they bring everything to a crawl
 # when we're working with more than a few targets. Worth pulling down though. 
@@ -69,6 +71,17 @@ high_level_phenotypes = ['adipose tissue', 'behavior/neurological', 'cardiovascu
                          'integument', 'immune system', 'limbs/digits/tail', 'liver/biliary system', 'mortality/aging',
                          'muscle', 'nervous system', 'pigmentation', 'renal/urinary system', 'reproductive system',
                          'respiratory system', 'skeleton', 'taste/olfaction', 'neoplasm', 'vision/eye']
+
+# We need a couple of lists available from the start. These can be accessed by looking through some folders for files.
+hpa_toxfiles = glob.glob("Data/HPA_tox_lists/*.csv")
+hpa_all_tissues = []
+for fl in hpa_toxfiles:
+    tissue, datatype = [re.sub('\+', ' ', i).capitalize() for i in re.split('[_\.]', basename(fl))[0:2]]
+    hpa_all_tissues.append(tissue)
+hpa_all_tissues = sorted(list(set(hpa_all_tissues)))
+
+hpo_annotation_files = glob.glob("Data/HPO_assocs/*_diseases.csv")
+hpo_annotation_names = sorted(list(set([re.sub("_diseases.csv", '', os.path.basename(i)) for i in hpo_annotation_files])))
 
 
 # Useful funcs
@@ -157,6 +170,8 @@ class Downloader(QThread):
         # Set vars for some other data sources; we'll fill them on run (if they aren't set already)
         # These expression datasets HAVE to be filled in during startup, because (some of) their headers are used in the
         # setting up of disease profiles. Inefficient, but difficult to avoid without doing some very silly things. 
+        self.bucketing_guide = None
+        self.id_lookup_table = None
         self.locationdata = None
         self.barreslab_mouse = None
         self.bl_mouse_cell_types = []
@@ -189,8 +204,6 @@ class Downloader(QThread):
 
         # Make lookup tables that can be dynamically filled as we go, reducing repeated querying. 
         self.pharos_ligand_data_library = {}
-        self.gene_names_to_uniprot_ids = {}
-        self.uniprot_ids_to_gene_names = {}
         self.drugebility_data_for_uniprot_ids = {}
         
         self.clinical_trial_data = {}
@@ -209,7 +222,6 @@ class Downloader(QThread):
         self.literature = None
         self.withdrawn_withdrawn = None
         self.hpa_tox_lists = {}
-        self.hpa_all_tissues = []
         self.hpa_tox_tissues = ['Heart muscle', 'Liver', 'Kidney', 'Testis', 'Cervix, uterine', 'Ovary', 'Bone marrow',
                                 'Lymph node']
         self.hpa_listclasses = []
@@ -293,6 +305,17 @@ class Downloader(QThread):
             traceback.print_exc()
     
     def read_datasets(self):
+        # A guide to bucketing (this just gets added to the output as a sheet)
+        if not self.bucketing_guide:
+            self.bucketing_guide = pd.read_excel("Data/bucket_guide.xlsx")
+        
+        # A fairly comprehensive basic ID lookup table, courtesy of GeneNames
+        if not self.id_lookup_table:
+            self.id_lookup_table = pd.read_table("Data/genenames_all_gene_ids_lookup_table.tsv", 
+                                                 converters={i: str for i in range(0, 100)})  # Read all cols as strings
+            # Not bad, but that leaves us with empty strings, which we don't want. Replace them with NaN
+            self.id_lookup_table = self.id_lookup_table.replace('', np.nan)
+        
         # Subcellular location data
         if not self.locationdata:
             self.status.emit("Reading subcellular location data...")
@@ -354,17 +377,14 @@ class Downloader(QThread):
                 skiprows=1, names=['Disease', 'EntrezID', 'HGNC Name'])
 
         # Read a list of tissues we've picked out as being likely toxicity indicators from the Human Protein Atlas.
-        self.hpa_toxfiles = glob.glob("Data/HPA_tox_lists/*.csv")
         # We can now auto-populate some lists that will help us keep this organised as desired.
-        for fl in self.hpa_toxfiles:
+        for fl in hpa_toxfiles:
             df = pd.read_csv(fl, index_col=0)
             tissue, datatype = [re.sub('\+', ' ', i).capitalize() for i in re.split('[_\.]', basename(fl))[0:2]]
-            self.hpa_all_tissues.append(tissue)
             self.hpa_listclasses.append(datatype)
             if not self.hpa_tox_lists.get(tissue):
                 self.hpa_tox_lists[tissue] = {}
             self.hpa_tox_lists[tissue][datatype] = df
-        self.hpa_all_tissues = sorted(list(set(self.hpa_all_tissues)))
         self.hpa_listclasses = sorted(list(set(self.hpa_listclasses)))
         # Add tissue names to the Risk factors sheet 
         for i in self.hpa_tox_tissues:
@@ -372,19 +392,19 @@ class Downloader(QThread):
             if j not in self.riskfactorcols:
                 self.riskfactorcols.append(j)
         # And the overall pandas frame columns! Super important. 
-        for i in self.hpa_all_tissues:
+        for i in hpa_all_tissues:
             j = "HPA " + i
             if j not in self.colnms:
                 self.colnms.append(j)
         
         if not self.HPO_annotations:
             # This will involve a bit of somewhat dynamic programming. All good, as long as we do it carefully.
-            for i in glob.glob("Data/HPO_assocs/*_diseases.csv"):
+            for i in hpo_annotation_files:
                 j = os.path.basename(i)
                 j = re.sub("_diseases.csv", '', j)
                 self.HPO_annotations[j] = pd.read_csv(i, skiprows=1)
             # And add some column names
-            for i in sorted(self.HPO_annotations):
+            for i in hpo_annotation_names:
                 if i not in self.riskfactorcols:
                     self.riskfactorcols.append(i)
                 if i not in self.colnms:
@@ -433,7 +453,7 @@ class Downloader(QThread):
             self.t3db_moas = pd.read_csv("Data/t3db_moas.csv")
         if not self.t3db_drug_moas:
             # Filter the methods of action down to only drugs
-            drug_toxins = drug_toxins = pd.DataFrame(
+            drug_toxins = pd.DataFrame(
                 [row for i, row in self.t3db_toxins.iterrows() if 'Drug' in [j['type_name'] for j in row['types']]])
             self.t3db_drug_moas = self.t3db_moas[self.t3db_moas['Toxin T3DB ID'].isin(drug_toxins['title'])]
         
@@ -458,7 +478,7 @@ class Downloader(QThread):
         # Also, make an 'existing drugs' table - that's extremely useful information. Also comes from OpenTargets. 
         self.existing_drug_data = pd.DataFrame(columns=self.existingdrugscols)
         # Make an 'anitargets' sheet - targets with a similar protein sequence.
-        self.antitargets_data = pd.DataFrame(columns = self.antitargetcols)
+        self.antitargets_data = pd.DataFrame(columns=self.antitargetcols)
         # GWAS data should be handled in a similar manner. 
         self.gwas_data = pd.DataFrame(columns=self.gwascols)
         # PDB data also needs a sheet of this kind, but I'll be appending stuff to it, so it can be blank.
@@ -569,9 +589,9 @@ class Downloader(QThread):
                            '4TM proteins predicted by MDM', '3TM proteins predicted by MDM',
                            '2TM proteins predicted by MDM',
                            '>9TM proteins predicted by MDM'}
-        self.poss_existing_cols = ['Uniprot ID', 'HGNC Name', 'GeneID', 'series', 'Approved Name', 'Previous Name',
-                                   'Synonyms', 'Mouse Ensembl ID', 'Mouse Uniprot ID', 'MGI Symbol',
-                                   'Mouse associated gene name', 'Entrez ID',
+        self.poss_existing_cols = ['Uniprot ID', 'HGNC Name', 'GeneID', 'series', 'Approved Name', 'Previous Name', 
+                                   'Previous Symbols', 'Synonyms', 'Mouse Ensembl ID', 'Mouse Uniprot ID', 'MGI Symbol',
+                                   'Mouse associated gene name', 'Entrez ID', 'Chromosome', 
                                    'HCOP Rat', 'HCOP Worm', 'HCOP Mouse', 'HCOP Fly', 'HCOP Zebrafish', 'Gene OMIM ID']
         
         # This is not an ideal way of doing this, but it prevents some quite annoying load times and removes some 
@@ -622,7 +642,7 @@ class Downloader(QThread):
                            'Oligodendrocyte Precursor Cell', 'Newly Formed Oligodendrocyte',
                            'Myelinating Oligodendrocytes', 'Microglia', 'Endothelial cells']
         
-        self.colnms = ['Input type', 'RNA class', 'Feature type', 'Mammalian phenotype ID', 'MPID term',
+        self.colnms = ['Input type', 'RNA class', 'Locus group', 'Feature type', 'Mammalian phenotype ID', 'MPID term',
                        'cerebral cortex', 'Astrocytes', 'Neuron', 'Oligodendrocyte Precursor Cell',
                        'Newly Formed Oligodendrocyte',
                        'Myelinating Oligodendrocytes', 'Microglia', 'Endothelial Cells', 
@@ -631,7 +651,7 @@ class Downloader(QThread):
                        'Domain ID', 'PDB', 'Druggable class', 'Pharos', 'ChEMBL drug', 'ChEMBL ligand',
                        'ChEMBL low-activity ligand', 'Is protein',
                        'Main location', 'Top level protein classes', 'Second level protein classes',
-                       'Third level protein classes',
+                       'Third level protein classes', 'Housekeeping gene', 
                        'Has withdrawn drug', 'Withdrawn drug list',
                        'Membrane proteins predicted by MDM', 'GPCRHMM predicted membrane proteins', '# TM segments',
                        'Predicted secreted proteins', 'Mutational cancer driver genes',
@@ -673,15 +693,16 @@ class Downloader(QThread):
                        'Assays', 'Antibodies', 'Affected pathway', 'Animal model', 'Genetic association', 'Known drug',
                        'Literature', 'Pharos literature', 'Rna expression', 'Somatic mutation',
                        'Safety bucket', 'SM Druggability bucket', 'Feasibility bucket', 'AB-ability bucket',
-                       'New modality bucket'
+                       'New modality bucket', 'Tissue engagement bucket'
                        ]
-        self.basicinfocols = ['series', 'HGNC Name', 'GeneID', 'Approved Name', 'Previous Name', 'Synonyms',
-                              'Uniprot ID', 'Entrez ID', 'Gene family', 'Gene family ID', 'Functional summary',
-                              'Mouse Ensembl ID', 'Mouse Uniprot ID', 'MGI Symbol',
-                              'HCOP Rat', 'HCOP Worm', 'HCOP Fly', 'HCOP Zebrafish', 'HCOP Mouse',
+        self.basicinfocols = ['series', 'HGNC Name', 'GeneID', 'Approved Name', 'Previous Name', 'Previous Symbols', 
+                              'Synonyms', 'Uniprot ID', 'Entrez ID', 'Chromosome', 'Gene family', 'Gene family ID', 
+                              'Functional summary', 'Mouse Ensembl ID', 'Mouse Uniprot ID', 'MGI Symbol',
+                              'HCOP Rat', 'HCOP Worm', 'HCOP Fly', 'HCOP Zebrafish', 'HCOP Mouse', 'Locus group',
                               'Is protein', 'RNA class', 'Top level protein classes']
         self.bucketcols = ['series', 'HGNC Name', 'GeneID', 'Safety bucket', 'SM Druggability bucket',
-                           'Feasibility bucket', 'AB-ability bucket', 'New modality bucket']
+                           'Feasibility bucket', 'AB-ability bucket', 'New modality bucket', 'Tissue engagement bucket', 
+                           'Pharos']
         self.gtexcols = ['series', 'HGNC Name', 'GeneID', 'GTEX query']
         self.barresmousecols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'Barres lab mouse query',
                                 'cerebral cortex', 'Astrocytes', 'Neuron', 'Oligodendrocyte Precursor Cell',
@@ -712,8 +733,10 @@ class Downloader(QThread):
                                 'Human Endothelial: 13yo', 'Human Endothelial: 47yo', 'Human whole cortex: 45yo',
                                 'Human whole cortex: 63yo', 'Human whole cortex: 25yo', 'Human whole cortex: 53yo']
         self.hpaenrichmentcols = ['series', 'HGNC Name', 'GeneID', 'HPA query']
-        self.riskfactorcols = ['series', 'HGNC Name', 'GeneID', 'HPA query', 'Phenotype risk score',  'Withdrawn drug ratio',
-                               'Mutational cancer driver genes', 'COSMIC somatic mutations in cancer genes']
+        self.riskfactorcols = ['series', 'HGNC Name', 'GeneID', 
+                               'Phenotype risk score',  'Withdrawn drug ratio',
+                               'Mutational cancer driver genes', 'COSMIC somatic mutations in cancer genes',
+                               'Housekeeping gene']
         self.diseasecols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'OpenTargets query', 'Approved Name', 
                             'Source', 'Disease name', 'Disease ID', 'Association score', 'Genetic association']
         self.jacksonlabcols = ['series', 'HGNC Name', 'GeneID', 'Approved name', 'Input', 'Input Type',
@@ -916,7 +939,7 @@ class Downloader(QThread):
                 if self.successful_requests:
                     success_count += 1
                 self.progbar_update.emit(int(((ind + 1) / num_targets) * 100))
-                print("done with that target!")
+                print("done with that target!\n-----")
             
             # This where to think about doing stuff that comes after downloading data is essentially 
             # complete. That is, basic analysis and the like. I.e., bucketing!
@@ -958,50 +981,52 @@ class Downloader(QThread):
         # Take care of filling in HGNC Name, Ensembl ID (GeneID) and UniProt ID in the most effective order.
         if not pd.isnull(target['HGNC Name']):
             # If we have a gene name...
+            print("Starting with HGNC name " + target['HGNC Name'])
             if pd.isnull(target['GeneID']):
                 # ... but no HGNC Name, get Ensembl ID
                 ensembl_id = self.get_ensembl_id_for_gene_name(target['HGNC Name'])
                 if ensembl_id:
                     self.targets.set_value(index=ind, col='GeneID', value=ensembl_id)
                     target['GeneID'] = ensembl_id  # Make it available inside the loop too
+                    print("\t-> " + ensembl_id)
             if pd.isnull(target['Uniprot ID']):
                 # ... but no Uniprot ID, get Uniprot ID
                 uniprot_id = self.get_uniprot_id_for_gene_name(target['HGNC Name'])
                 if uniprot_id:
                     self.targets.set_value(index=ind, col='Uniprot ID', value=uniprot_id)
                     target['Uniprot ID'] = uniprot_id  # Make it available inside the loop too
+                    print("\t-> " + uniprot_id)
         elif not pd.isnull(target['GeneID']):
             # Otherwise, if we have an Ensembl ID...
-            print("Are we even going in here?")
+            print("Starting with Ensembl ID " + target['GeneID'])
             if pd.isnull(target['HGNC Name']):
                 # ... but no name, get a name
-                print("Converting " + target['GeneID'] + " to name")
                 gene_name = self.get_gene_name_for_ensembl_id(target['GeneID'])
-                print(gene_name)
                 if gene_name:
-                    print("Converted " + target['GeneID'] + " to " + str(gene_name))
                     self.targets.set_value(index=ind, col='HGNC Name', value=gene_name)
                     target['HGNC Name'] = gene_name  # Make it available inside the loop too
+                    print("\t-> " + gene_name)
                 else:
-                    print("No gene name found")
+                    print("\t-> No gene name found")
             if pd.isnull(target['Uniprot ID']):
                 # ... but no Uniprot ID, get Uniprot ID
-                print("Gettin uniprot ID")
                 uniprot_id = self.get_uniprot_id_for_ensembl_id(target['GeneID'])
                 if uniprot_id:
-                    print("got " + uniprot_id)
                     self.targets.set_value(index=ind, col='Uniprot ID', value=uniprot_id)
                     target['Uniprot ID'] = uniprot_id  # Make it available inside the loop too
+                    print("\t-> " + uniprot_id)
                 else:
-                    print("no uniprot ID found")
+                    print("\t-> no uniprot ID found")
         elif not pd.isnull(target['Uniprot ID']):
             # Otherwise, if we have a Uniprot ID...
+            print("Starting with Uniprot ID " + target['Uniprot ID'])
             if pd.isnull(target['HGNC Name']):
                 # ... but no name, get a name
                 gene_name = self.get_gene_name_for_uniprot_id(target['Uniprot ID'])
                 if gene_name:
                     self.targets.set_value(index=ind, col='GeneID', value=gene_name)
                     target['HGNC Name'] = gene_name  # Make it available inside the loop too
+                    print("\t-> " + gene_name)
             if pd.isnull(target['GeneID']):
                 # ... but no GeneID, get Ensembl ID 
                 # ensembl_id = get_ensembl_id_for_uniprot_id(target['Uniprot ID']) 
@@ -1013,6 +1038,7 @@ class Downloader(QThread):
                     if ensembl_id:
                         self.targets.set_value(index=ind, col='GeneID', value=ensembl_id)
                         target['GeneID'] = ensembl_id  # Make it available inside the loop too
+                        print("\t-> " + ensembl_id)
         return target
     
     def set_display_name(self, target):
@@ -1030,128 +1056,186 @@ class Downloader(QThread):
     def get_genenames_annotations(self, ind, target, displayname):
         # Get some annotations - family membership and the like - that's directly accessible via basic identifiers.
         try:
-            url = None
+            # Now that I get all this stuff from a file rather than web queries, I can quite radically simplify this:
+            df = None
             if target['HGNC Name'] not in [None, np.nan]:
-                url = "http://rest.genenames.org/fetch/symbol/" + target['HGNC Name']
+                df = self.id_lookup_table[self.id_lookup_table['Approved Symbol'] == target['HGNC Name']]
             elif target['GeneID'] not in [None, np.nan]:
-                url = "http://rest.genenames.org/fetch/ensembl_gene_id/" + target['GeneID']
+                df = self.id_lookup_table[self.id_lookup_table['Ensembl Gene ID'] == target['GeneID']]
             elif target['Uniprot ID'] not in [None, np.nan]:
-                url = "http://rest.genenames.org/fetch/uniprot_ids/" + target['Uniprot ID']
-                print("url = " + url)
+                df = self.id_lookup_table[self.id_lookup_table['UniProt ID(supplied by UniProt)'] == target['Uniprot ID']]
             else:
                 exit("Extremely incorrect input data found; should have been caught long before this!")
-            response = requests.get(url)
-            if response.status_code != 200:
-                self.warnings.emit("GeneNames query failed with code " + str(response.status_code))
-                if response.status_code == 500:
-                    sleep(10)
-                    annotations = self.get_genenames_annotations(ind, target, displayname)
-                    return annotations
-            else:
-                data = xmltodict.parse(response.content)
-                # pprint(data)
-                if int(data.get('response').get('result').get('@numFound')) > 0:
-                    print("    approved name")
-                    if data.get('response').get('result').get('doc').get('str'):
-                        arr = data['response']['result']['doc']['str']
-                        if not isinstance(arr, list):
-                            arr = [arr]
-                        approved_name = [i.get('#text') for i in arr if i['@name'] == "name"]
-                        if pd.isnull(target['Approved Name']) and approved_name:
-                            self.targets.set_value(index=ind, col='Approved Name', value=approved_name[0])
-                            target['Approved Name'] = approved_name
-                            # print("    prev names")
-                            # pprint(data['response']['result']['doc']['arr'])
-                        entrez_id = [i.get('#text') for i in arr if i['@name'] == "entrez_id"]
-                        if pd.isnull(target['Entrez ID']) and entrez_id:
-                            self.targets.set_value(index=ind, col='Entrez ID', value=entrez_id[0])
-                            target['Entrez ID'] = entrez_id
-                    if data.get('response').get('result').get('doc').get('arr'):
-                        arr = data['response']['result']['doc']['arr']
-                        if not isinstance(arr, list):
-                            arr = [arr]
-                        prev_names = [i['str'] for i in arr if i['@name'] == "prev_name"]
-                        if prev_names:
-                            if isinstance(prev_names, str):
-                                # Sometimes this gives you strings when there's only one; we ALWAYS want a list
-                                prev_names = [prev_names]
-                            elif isinstance(prev_names[0], list):
-                                # On the other hand, we may need to flatten a list of lists into a list. 
-                                prev_names = list(itertools.chain(*prev_names))
-                        print("    prev symbols")
-                        prev_symbols = [i['str'] for i in arr if
-                                        i['@name'] == "prev_symbol"]
-                        if prev_symbols:
-                            if isinstance(prev_symbols, str):
-                                prev_symbols = [prev_symbols]
-                            elif isinstance(prev_symbols[0], list):
-                                prev_symbols = list(itertools.chain(*prev_symbols))
-                        # We can now fill missing values as appropriate, if replacements are available.
-                        if pd.isnull(target['Previous Name']) and prev_names + prev_symbols:
-                            self.targets.set_value(index=ind, col='Previous Name',
-                                                   value=", ".join(uniq(prev_names + prev_symbols)))
-                        print("    alias symbols")
-                        alias_symbols = [i['str'] for i in arr if i['@name'] == "alias_symbol"]
-                        if alias_symbols:
-                            if isinstance(alias_symbols, str):
-                                alias_symbols = [alias_symbols]
-                            elif isinstance(alias_symbols[0], list):
-                                alias_symbols = list(itertools.chain(*alias_symbols))
-                        if pd.isnull(target['Synonyms']) and alias_symbols:
-                            self.targets.set_value(index=ind, col='Synonyms', value=", ".join(uniq(alias_symbols)))
-                        # Can we get OMIM IDs (for disease associations) from that too?
-                        print("    omim")
-                        omim_id = [i['str'] for i in arr if i['@name'] == "omim_id"]
-                        if omim_id:
-                            if isinstance(omim_id, str):
-                                omim_id = [omim_id]
-                            elif isinstance(omim_id[0], list):
-                                omim_id = list(itertools.chain(*omim_id))
-                        if pd.isnull(target['Gene OMIM ID']) and omim_id:
-                            self.targets.set_value(index=ind, col='Gene OMIM ID', value=omim_id)
-                            # GeneNames data an also tell us if this gene is in the Endogenous Ligands family. 
-                            # But that's not what we want - we want to know if the gene HAS an endogenous ligand, rather
-                            # than whether it IS one. 
-                        print("    gene families")
-                        gene_families = flatten([i['str'] for i in arr if i['@name'] == "gene_family"])
-                        if gene_families:
-                            target['Gene family'] = "|".join(gene_families)
-                            self.targets.set_value(index=ind, col='Gene family',
-                                                   value=target['Gene family'])
-                        # if 'Endogenous ligands' in gene_families:
-                        #     self.targets.set_value(index=ind, col='Endogenous ligand', value=True)
-                        # Get gene family ID - we'll drill down a bit further with that shortly, then use it when 
-                        # doing some bucketing.
-                        gene_family_id = flatten([i['int'] for i in arr if i['@name'] == "gene_family_id"])
-                        # That can have multiple entries sometimes, it turns out. Plan appropriately.
-                        # print(gene_family_id)
-                        # pprint(data)
-                        if gene_family_id:
-                            target['Gene family ID'] = "|".join(gene_family_id)
-                            self.targets.set_value(index=ind, col='Gene family ID',
-                                                   value=target['Gene family ID'])
-                            for fam_id in gene_family_id:
-                                self.get_protein_family_info(fam_id)
+            
+            if len(df):
+                # The names of things in the lookup table and my table often don't quite match. Sort that out here.
+                #                    GeneNames                       Mine
+                pairs_of_things = [["Approved Name",                "Approved Name"],
+                                   ["Entrez Gene ID",               "Entrez ID"],
+                                   ["Previous Symbols",             "Previous Symbols"],
+                                   ["Previous Name",                "Previous Name"],
+                                   ["Synonyms",                     "Synonyms"],
+                                   ["OMIM ID(supplied by OMIM)",    "Gene OMIM ID"],
+                                   ["Gene Family Name",             "Gene family"],
+                                   ["Gene Family ID",               "Gene family ID"],
+                                   ["Chromosome",                   "Chromosome"],
+                                   ["Locus Group",                  "Locus group"]]
+                # Now that that's taken care of, we can just go and pull those out and slot them into self.targets
+                for i in pairs_of_things:
+                    gn_name = i[0]
+                    my_name = i[1]
+                    value = df[gn_name].tolist()[0]
+                    if pd.isnull(value):
+                        value = None
+                    self.targets.set_value(index=ind, col=my_name, value=value)
+                    target[my_name] = value
+                    # A bit of extra stuff I nearly forgot about: gene family data. (I'll keep querying this for now).
+                    if my_name == "Gene family ID" and value:
+                        for gfid in self.split_gene_families(value):
+                            self.get_protein_family_info(gfid)
+            
+            # 
+            # url = None
+            # if target['HGNC Name'] not in [None, np.nan]:
+            #     url = "http://rest.genenames.org/fetch/symbol/" + target['HGNC Name']
+            # elif target['GeneID'] not in [None, np.nan]:
+            #     url = "http://rest.genenames.org/fetch/ensembl_gene_id/" + target['GeneID']
+            # elif target['Uniprot ID'] not in [None, np.nan]:
+            #     url = "http://rest.genenames.org/fetch/uniprot_ids/" + target['Uniprot ID']
+            #     print("url = " + url)
+            # else:
+            #     exit("Extremely incorrect input data found; should have been caught long before this!")
+            # response = requests.get(url)
+            # if response.status_code != 200:
+            #     self.warnings.emit("GeneNames query failed with code " + str(response.status_code))
+            #     if response.status_code == 500:
+            #         sleep(10)
+            #         annotations = self.get_genenames_annotations(ind, target, displayname)
+            #         return annotations
+            # else:
+            #     data = xmltodict.parse(response.content)
+            #     # pprint(data)
+            #     if int(data.get('response').get('result').get('@numFound')) > 0:
+            #         print("    approved name")
+            #         if data.get('response').get('result').get('doc').get('str'):
+            #             arr = data['response']['result']['doc']['str']
+            #             if not isinstance(arr, list):
+            #                 arr = [arr]
+            #             approved_name = [i.get('#text') for i in arr if i['@name'] == "name"]
+            #             if pd.isnull(target['Approved Name']) and approved_name:
+            #                 self.targets.set_value(index=ind, col='Approved Name', value=approved_name[0])
+            #                 target['Approved Name'] = approved_name
+            #                 # print("    prev names")
+            #                 # pprint(data['response']['result']['doc']['arr'])
+            #             entrez_id = [i.get('#text') for i in arr if i['@name'] == "entrez_id"]
+            #             if pd.isnull(target['Entrez ID']) and entrez_id:
+            #                 self.targets.set_value(index=ind, col='Entrez ID', value=entrez_id[0])
+            #                 target['Entrez ID'] = entrez_id
+            #         if data.get('response').get('result').get('doc').get('arr'):
+            #             arr = data['response']['result']['doc']['arr']
+            #             if not isinstance(arr, list):
+            #                 arr = [arr]
+            #             prev_names = [i['str'] for i in arr if i['@name'] == "prev_name"]
+            #             if prev_names:
+            #                 if isinstance(prev_names, str):
+            #                     # Sometimes this gives you strings when there's only one; we ALWAYS want a list
+            #                     prev_names = [prev_names]
+            #                 elif isinstance(prev_names[0], list):
+            #                     # On the other hand, we may need to flatten a list of lists into a list. 
+            #                     prev_names = list(itertools.chain(*prev_names))
+            #             print("    prev symbols")
+            #             prev_symbols = [i['str'] for i in arr if
+            #                             i['@name'] == "prev_symbol"]
+            #             if prev_symbols:
+            #                 if isinstance(prev_symbols, str):
+            #                     prev_symbols = [prev_symbols]
+            #                 elif isinstance(prev_symbols[0], list):
+            #                     prev_symbols = list(itertools.chain(*prev_symbols))
+            #             # We can now fill missing values as appropriate, if replacements are available.
+            #             if pd.isnull(target['Previous Name']) and prev_names + prev_symbols:
+            #                 self.targets.set_value(index=ind, col='Previous Name',
+            #                                        value=", ".join(uniq(prev_names + prev_symbols)))
+            #             print("    alias symbols")
+            #             alias_symbols = [i['str'] for i in arr if i['@name'] == "alias_symbol"]
+            #             if alias_symbols:
+            #                 if isinstance(alias_symbols, str):
+            #                     alias_symbols = [alias_symbols]
+            #                 elif isinstance(alias_symbols[0], list):
+            #                     alias_symbols = list(itertools.chain(*alias_symbols))
+            #             if pd.isnull(target['Synonyms']) and alias_symbols:
+            #                 self.targets.set_value(index=ind, col='Synonyms', value=", ".join(uniq(alias_symbols)))
+            #             # Can we get OMIM IDs (for disease associations) from that too?
+            #             print("    omim")
+            #             omim_id = [i['str'] for i in arr if i['@name'] == "omim_id"]
+            #             if omim_id:
+            #                 if isinstance(omim_id, str):
+            #                     omim_id = [omim_id]
+            #                 elif isinstance(omim_id[0], list):
+            #                     omim_id = list(itertools.chain(*omim_id))
+            #             if pd.isnull(target['Gene OMIM ID']) and omim_id:
+            #                 self.targets.set_value(index=ind, col='Gene OMIM ID', value=omim_id)
+            #                 # GeneNames data can also tell us if this gene is in the Endogenous Ligands family. 
+            #                 # But that's not what we want - we want to know if the gene HAS an endogenous ligand, rather
+            #                 # than whether it IS one. 
+            #             print("    gene families")
+            #             gene_families = flatten([i['str'] for i in arr if i['@name'] == "gene_family"])
+            #             if gene_families:
+            #                 target['Gene family'] = "|".join(gene_families)
+            #                 self.targets.set_value(index=ind, col='Gene family',
+            #                                        value=target['Gene family'])
+            #             # if 'Endogenous ligands' in gene_families:
+            #             #     self.targets.set_value(index=ind, col='Endogenous ligand', value=True)
+            #             # Get gene family ID - we'll drill down a bit further with that shortly, then use it when 
+            #             # doing some bucketing.
+            #             gene_family_id = flatten([i['int'] for i in arr if i['@name'] == "gene_family_id"])
+            #             # That can have multiple entries sometimes, it turns out. Plan appropriately.
+            #             # print(gene_family_id)
+            #             # pprint(data)
+            #             if gene_family_id:
+            #                 target['Gene family ID'] = "|".join(gene_family_id)
+            #                 self.targets.set_value(index=ind, col='Gene family ID',
+            #                                        value=target['Gene family ID'])
+            #                 for fam_id in gene_family_id:
+            #                     self.get_protein_family_info(fam_id)
         
         except Exception as e:
             print("Exception in GeneNames function:")
             print(e)
             traceback.print_exc()
-            print("Retrying in 10 seconds...")
-            sleep(10)
-            self.get_genenames_annotations(ind, target, displayname)
+            exit()
+            # print("Retrying in 10 seconds...")
+            # sleep(10)
+            # self.get_genenames_annotations(ind, target, displayname)
+    
+    @staticmethod
+    def split_gene_families(gene_family_id):
+        # This bit of code gets used several times, so it should be a function.
+        # Why do we need it? Because there may be multiple family IDs in this string!
+        return gene_family_id.split("|")
     
     def get_protein_family_info(self, gene_family_id):
         # We may repeatedly query the same family here. In the interests of both speed and being nice, let's not 
         # actually do that. 
         # IMPORTANT: Some genes can belong to more than one family. But I've dealt with that elsewhere.
+        url = None
+        from pandas.errors import ParserError
         try:
             if gene_family_id not in self.gene_family_data:
-                url = "https://www.genenames.org/cgi-bin/genefamilies/set/" + gene_family_id + "/download/" + self.gene_family_query_level
+                url = "https://www.genenames.org/cgi-bin/genefamilies/set/" + gene_family_id + "/download/" + \
+                      self.gene_family_query_level
                 self.gene_family_data[gene_family_id] = pd.read_table(url)
+        except ParserError as pe:
+            print("Parser error; get to the bottom of this.")
+            print(pe)
+            print(url)
+            print(gene_family_id)
+            print(type(gene_family_id))
+            traceback.print_exc()
+            exit()
         except Exception as e:
             print("Exception in GeneNames gene family function:")
             print(e)
+            print(url)
             traceback.print_exc()
             print("Retrying in 10 seconds...")
             sleep(10)
@@ -1435,6 +1519,11 @@ class Downloader(QThread):
                             target['Additional subcellular locations'] = loc_additional
                             target['GOIDs'] = goids
                         
+                        # Is this a housekeeping gene? (I.e., is it expressed in all tissues?)
+                        if data.get('proteinAtlas').get('entry').get('rnaExpression').get('rnaTissueCategory').get(
+                                    '#text') == "Expressed in all":
+                            self.targets.set_value(index=ind, col='Housekeeping gene', value=True)
+                        
                         # We can also get a bit of information about assays and antibodies.
                         # This looks handy, but I don't see how to use it yet. 
                         if 'antibody' in data['proteinAtlas']['entry']:
@@ -1495,9 +1584,21 @@ class Downloader(QThread):
             return self.drugebility_data_for_uniprot_ids[tuid]
         try:
             # self.targets.set_value(index=ind, col='DrugEBIlity query', value=tuid)
-            response = requests.get("https://www.ebi.ac.uk/chembl/drugebility/protein/structural/" + tuid)
+            # This is currently being troublesome, so let's try to not do that. 
+            session = requests.Session()
+            retry = Retry(connect=5, backoff_factor=0.5)
+            adapter = HTTPAdapter(max_retries=retry)
+            session.mount('http://', adapter)
+            session.mount('https://', adapter)
+            response = session.get("https://www.ebi.ac.uk/chembl/drugebility/protein/structural/" + tuid)
+            
             if response.status_code != 200:
-                self.warnings.emit("EBI Druggability query failed with code " + str(response.status_code))
+                # self.warnings.emit("EBI Druggability query failed with code " + str(response.status_code))
+                print("EBI Druggability query failed with code " + str(response.status_code))
+                if response.status_code != 404:
+                    sleep(10)
+                    print("Re-attempting...")
+                    self.query_drugebility(tuid)
             else:
                 html = response.content
                 # Can we pattern-match the phrase "Ave. Druggable" anywhere in that html? If so, we have the data 
@@ -1595,7 +1696,7 @@ class Downloader(QThread):
             if target['HGNC Name']:
                 print("hpa enrichment")
                 self.emit_download_status(target, displayname, "HPA Enrichment")
-                for tissue in self.hpa_all_tissues:
+                for tissue in hpa_all_tissues:
                     print("\t" + tissue)
                     outcomes = []
                     for enrichment in self.hpa_listclasses:
@@ -1619,7 +1720,7 @@ class Downloader(QThread):
                 self.emit_download_status(target, displayname, "Risk factors")
                 diseases = self.HPO_genes_to_diseases[self.HPO_genes_to_diseases['HGNC Name'] == target['HGNC Name']]
                 score = 0
-                for i in self.HPO_annotations:
+                for i in hpo_annotation_names:
                     df = self.HPO_annotations[i]
                     if list(set(diseases['Disease'].tolist()).intersection(df['Disease id'])):
                         self.targets.set_value(index=ind, col=i, value=True)
@@ -1803,7 +1904,6 @@ class Downloader(QThread):
         # Query Pharos -  an NCBI repository of drug target-related data. 
         try:
             if target['Uniprot ID'] not in [None, np.nan]:
-                print("pharos")
                 self.emit_download_status(target, displayname, "Pharos")
                 self.targets.set_value(index=ind, col='Pharos query', value=target['Uniprot ID'])
                 pharos_data = self.download_pharos_drug_and_ligand_count(target['Uniprot ID'])
@@ -2196,53 +2296,55 @@ class Downloader(QThread):
                 # self.status.emit("Downloading data for target " + displayname + "... (GWAS)")
                 self.emit_download_status(target, displayname, "GWAS")
                 self.targets.set_value(index=ind, col='GWAS query', value=target['HGNC Name'])
-                url = "http://www.gwascentral.org/studies?q=" + target['HGNC Name'] + "&t=6&format=json"
-                response = requests.get(url)
-                if response.status_code != 200:
-                    pass
-                else:
-                    gwas_count = 0
-                    for gwas in json.loads(response.text):
-                        # Bear in mind that many - possibly most - targets won't have any known GWAS findings! 
-                        new_gwas_row = {
-                            'series': target['series'],
-                            'GeneID': target['GeneID'],
-                            'HGNC Name': target['HGNC Name'],
-                            'Source': 'GWAS Central',
-                            'Study name': gwas['name'],
-                            'ID': gwas['identifier'],
-                            'Phenotypes': ", ".join(gwas['phenotypes']),
-                            'Highest P-value': gwas['highest_pvalue'],
-                            'Num. markers': gwas['number_of_markers'],
-                            'link': gwas['link']
-                        }
-                        self.gwas_data = self.gwas_data.append(new_gwas_row, ignore_index=True)
-                        gwas_count += 1
-                    # Since we're doing this anyway, we may as well search the GWAS Catalog data that I opened earlier.
-                    for x, gwas in self.gwas_catalog[
-                                self.gwas_catalog['MAPPED_GENE'] == target['HGNC Name'].upper()].iterrows():
-                        new_gwas_row = {
-                            'series': target['series'],
-                            'GeneID': target['GeneID'],
-                            'HGNC Name': target['HGNC Name'],
-                            'Source': 'GWAS Catalog',
-                            'Study name': gwas['STUDY'],
-                            'ID': gwas['STUDY ACCESSION'],
-                            'Phenotypes': gwas['MAPPED_TRAIT'],
-                            'Highest P-value': gwas['P-VALUE'],
-                            'link': gwas['LINK']
-                        }
-                        self.gwas_data = self.gwas_data.append(new_gwas_row, ignore_index=True)
-                        gwas_count += 1
-                    
-                    if gwas_count == 0:
-                        new_gwas_row = {
-                            'series': target['series'],
-                            'GeneID': target['GeneID'],
-                            'HGNC Name': target['HGNC Name'],
-                            'Source': 'No GWAS publications found'
-                        }
-                        self.gwas_data = self.gwas_data.append(new_gwas_row, ignore_index=True)
+                gwas_count = 0
+                # url = "http://www.gwascentral.org/studies?q=" + target['HGNC Name'] + "&t=6&format=json"
+                # print(url)
+                # response = requests.get(url)
+                # if response.status_code != 200:
+                #     pass
+                # else:
+                #     for gwas in json.loads(response.text):
+                #         # Bear in mind that many - possibly most - targets won't have any known GWAS findings! 
+                #         new_gwas_row = {
+                #             'series': target['series'],
+                #             'GeneID': target['GeneID'],
+                #             'HGNC Name': target['HGNC Name'],
+                #             'Source': 'GWAS Central',
+                #             'Study name': gwas['name'],
+                #             'ID': gwas['identifier'],
+                #             'Phenotypes': ", ".join(gwas['phenotypes']),
+                #             'Highest P-value': gwas['highest_pvalue'],
+                #             'Num. markers': gwas['number_of_markers'],
+                #             'link': gwas['link']
+                #         }
+                #         self.gwas_data = self.gwas_data.append(new_gwas_row, ignore_index=True)
+                #         gwas_count += 1
+                # Disabled because GWAS Central have stopped allowing bulk querying via API...
+                # Since we're doing this anyway, we may as well search the GWAS Catalog data that I opened earlier.
+                for x, gwas in self.gwas_catalog[
+                            self.gwas_catalog['MAPPED_GENE'] == target['HGNC Name'].upper()].iterrows():
+                    new_gwas_row = {
+                        'series': target['series'],
+                        'GeneID': target['GeneID'],
+                        'HGNC Name': target['HGNC Name'],
+                        'Source': 'GWAS Catalog',
+                        'Study name': gwas['STUDY'],
+                        'ID': gwas['STUDY ACCESSION'],
+                        'Phenotypes': gwas['MAPPED_TRAIT'],
+                        'Highest P-value': gwas['P-VALUE'],
+                        'link': gwas['LINK']
+                    }
+                    self.gwas_data = self.gwas_data.append(new_gwas_row, ignore_index=True)
+                    gwas_count += 1
+                
+                if gwas_count == 0:
+                    new_gwas_row = {
+                        'series': target['series'],
+                        'GeneID': target['GeneID'],
+                        'HGNC Name': target['HGNC Name'],
+                        'Source': 'No GWAS publications found'
+                    }
+                    self.gwas_data = self.gwas_data.append(new_gwas_row, ignore_index=True)
         except Exception as e:
             print("Exception in GWAS function:")
             print(e)
@@ -2318,12 +2420,12 @@ class Downloader(QThread):
             i = target['Uniprot ID']
             homologs = self.get_homologs(i)
             if homologs:
-                for j in homologs:
+                for j in [str(k) for k in homologs]:
                     if i != j:
                         identity = (self.identity_scores[i][j] + self.identity_scores[j][i]) / 2
                         d = target[self.antitargetcols[:4]]
                         d['Antitarget Uniprot ID'] = j
-                        d['Antitarget gene name'] = self.get_uniprot_id_for_gene_name(j)
+                        d['Antitarget gene name'] = self.get_gene_name_for_uniprot_id(j)
                         d['Protein seq. identity (%)'] = identity
                         if identity >= self.api_keys['seq_similarity_threshold']:
                             self.antitargets_data = self.antitargets_data.append(d, ignore_index=True)
@@ -2416,6 +2518,7 @@ class Downloader(QThread):
         # Buckets sheet
         print("buckets")
         sheets_by_name['Buckets'] = self.targets[self.bucketcols].copy()
+        sheets_by_name['Bucket guide'] = self.bucketing_guide.copy()
         # Safety risk sheet
         print("safety")
         sheets_by_name['GTEX'] = self.targets[self.gtexcols].copy()
@@ -2428,7 +2531,7 @@ class Downloader(QThread):
         # HPA enrichment sheet
         print("hpa enrichment")
         sheets_by_name['HPA Enrichment'] = self.targets[
-            self.hpaenrichmentcols + ["HPA " + i for i in self.hpa_all_tissues]]
+            self.hpaenrichmentcols + ["HPA " + i for i in hpa_all_tissues]]
         # Disease associations sheet
         print("risk")
         sheets_by_name['Risk factors'] = self.targets[self.riskfactorcols].copy()
@@ -2496,6 +2599,17 @@ class Downloader(QThread):
         return sheets_by_name
     
     def get_ensembl_id_for_gene_name(self, gene_name):
+        # Use the lookup table first; should that fail, try querying genenames.
+        try:
+            df = self.id_lookup_table[self.id_lookup_table['Approved Symbol'] == gene_name]
+            if len(df):
+                return str(df['Ensembl Gene ID'].tolist()[0])
+        except Exception as e:
+            print("Exception in HGNC Name -> Ensembl ID function:")
+            print(e)
+            traceback.print_exc()
+            exit()
+        
         try:
             url = "http://rest.genenames.org/fetch/symbol/" + gene_name
             print("Looking up ensembl ID for gene name " + gene_name)
@@ -2532,7 +2646,7 @@ class Downloader(QThread):
                     # exit("ERROR: Unable to find records for gene symbol " + gene_name + "!")
                     return None
         except Exception as e:
-            print("Exception in Ensembl ID -> HGNC name function:")
+            print("Exception in HGNC Name -> Ensembl ID function:")
             print(e)
             traceback.print_exc()
             print("Retrying in 10 seconds...")
@@ -2540,8 +2654,17 @@ class Downloader(QThread):
             return self.get_ensembl_id_for_gene_name(gene_name)
     
     def get_uniprot_id_for_gene_name(self, gene_name):
-        if self.gene_names_to_uniprot_ids.get(gene_name):
-            return self.gene_names_to_uniprot_ids[gene_name]
+        # Use the lookup table first; should that fail, try querying genenames.
+        try:
+            df = self.id_lookup_table[self.id_lookup_table['Approved Symbol'] == gene_name]
+            if len(df):
+                return str(df['UniProt ID(supplied by UniProt)'].tolist()[0])
+        except Exception as e:
+            print("Exception in HGNC Name -> UniProt ID function:")
+            print(e)
+            traceback.print_exc()
+            exit()
+        
         try:
             url = "http://www.uniprot.org/uniprot/?query=gene:" + gene_name + "+AND+organism:" + \
                   self.organism + "&sort=score&format=tab"
@@ -2560,15 +2683,13 @@ class Downloader(QThread):
                         reviewed = uniprot[uniprot['Status'] == 'reviewed']
                         if len(reviewed) > 0:
                             # We want better handling of cases where there is more than one available Uniprot ID.
-                            uniprot_id = reviewed['Entry'].tolist()[0]
-                            self.gene_names_to_uniprot_ids[gene_name] = uniprot_id
-                            self.uniprot_ids_to_gene_names[uniprot_id] = gene_name
+                            uniprot_id = str(reviewed['Entry'].tolist()[0])
                             return uniprot_id
                 else:
                     print(uniprot_data)
                 return None
         except Exception as e:
-            print("Exception in UniProt ID -> HGNC name function:")
+            print("Exception in HGNC name -> UniProt ID function:")
             print(e)
             traceback.print_exc()
             print("Retrying in 10 seconds...")
@@ -2576,6 +2697,16 @@ class Downloader(QThread):
             return self.get_uniprot_id_for_gene_name(gene_name)
     
     def get_gene_name_for_ensembl_id(self, ensembl_id):
+        # Use the lookup table first; should that fail, try querying genenames.
+        try:
+            df = self.id_lookup_table[self.id_lookup_table['Ensembl Gene ID'] == ensembl_id]
+            if len(df):
+                return str(df['Approved Symbol'].tolist()[0])
+        except Exception as e:
+            print("Exception in Ensembl ID -> HGNC name function:")
+            print(e)
+            traceback.print_exc()
+            exit()
         try:
             url = "http://rest.ensembl.org/xrefs/id/" + ensembl_id + "?content-type=application/json"
             print("Looking up gene name for ensembl ID " + ensembl_id)
@@ -2604,6 +2735,17 @@ class Downloader(QThread):
             return self.get_gene_name_for_ensembl_id(ensembl_id)
     
     def get_uniprot_id_for_ensembl_id(self, ensembl_id):
+        # Use the lookup table first; should that fail, try querying genenames.
+        try:
+            df = self.id_lookup_table[self.id_lookup_table['Ensembl Gene ID'] == ensembl_id]
+            if len(df):
+                return str(df['UniProt ID(supplied by UniProt)'].tolist()[0])
+        except Exception as e:
+            print("Exception in Ensembl ID -> UniProt ID function:")
+            print(e)
+            traceback.print_exc()
+            exit()
+        
         try:
             url = "http://rest.ensembl.org/xrefs/id/" + ensembl_id + "?content-type=application/json"
             print("Looking up uniprot ID for ensembl ID " + ensembl_id)
@@ -2624,7 +2766,7 @@ class Downloader(QThread):
                             return i['primary_id']
                     return None
         except Exception as e:
-            print("Exception in UniProt ID -> Ensembl ID function:")
+            print("Exception in Ensembl ID -> UniProt ID function:")
             print(e)
             traceback.print_exc()
             print("Retrying in 10 seconds...")
@@ -2633,16 +2775,34 @@ class Downloader(QThread):
     
     def get_ensembl_id_for_uniprot_id(self, uniprot_id):
         # Bit tricky, this one. 
-        # I didn't find a way to do it directly, so I just worked around it without having to use this at all.
-        print("WORK IN PROGRESS")
-    
+        # I didn't find a way to do it directly by query, so if we can't find it in the lookup table, we can't have it.
+        # As such, I've avoided it where possible.
+        try:
+            df = self.id_lookup_table[self.id_lookup_table['UniProt ID(supplied by UniProt)'] == uniprot_id]
+            if len(df):
+                return str(df['Ensembl Gene ID'].tolist()[0])
+        except Exception as e:
+            print("Exception in UniProt ID -> Ensembl ID function:")
+            print(e)
+            traceback.print_exc()
+            exit()
+
     def get_gene_name_for_uniprot_id(self, uniprot_id):
-        if self.uniprot_ids_to_gene_names.get(uniprot_id):
-            return self.uniprot_ids_to_gene_names[uniprot_id]
+        # Use the lookup table first; should that fail, try querying genenames.
+        try:
+            df = self.id_lookup_table[self.id_lookup_table['UniProt ID(supplied by UniProt)'] == uniprot_id]
+            if len(df):
+                return str(df['Approved Symbol'].tolist()[0])
+        except Exception as e:
+            print("Exception in HGNC Name -> UniProt ID function:")
+            print(e)
+            traceback.print_exc()
+            exit()
+        
         try:
             url = "http://www.uniprot.org/uniprot/?query=accession:" + uniprot_id + "+AND+organism:" + \
                   self.organism + "&sort=score&format=tab"
-            print("Looking up gene name for uniprot ID" + uniprot_id)
+            print("Looking up gene name for uniprot ID " + uniprot_id)
             print("url = " + url)
             response = requests.get(url)
             # if response.status_code != 200:
@@ -2653,13 +2813,17 @@ class Downloader(QThread):
                 uniprot_data = response.text
                 if uniprot_data:
                     uniprot = pd.read_table(StringIO(uniprot_data))
-                    names = uniprot['Gene names'].tolist()[0].split(' ')
-                    chosen_name = names[0]
-                    self.gene_names_to_uniprot_ids[chosen_name] = uniprot_id
-                    self.uniprot_ids_to_gene_names[uniprot_id] = chosen_name
-                    return chosen_name
+                    names = []
+                    if len(uniprot['Entry name'].dropna()):
+                        names = [re.sub("_HUMAN", '', i) for i in uniprot['Entry name'].tolist()[0].split(' ')]
+                    elif len(uniprot['Gene names'].dropna()):
+                        names = uniprot['Gene names'].tolist()[0].split(' ')
+                    if names:
+                        return names[0]
+                    else:
+                        return uniprot_id  # Better than nothing...
         except Exception as e:
-            print("Exception in UniProt ID -> HGNC name function:")
+            print("Exception in HGNC Name -> UniProt ID function:")
             print(e)
             traceback.print_exc()
             print("Retrying in 10 seconds...")
@@ -2688,6 +2852,8 @@ class Downloader(QThread):
                 self.targets.set_value(index=ind, col='AB-ability bucket', value=antibodyability)
                 new_modality = self.new_modality_bucket(target, druggability, antibodyability)
                 self.targets.set_value(index=ind, col='New modality bucket', value=new_modality)
+                tissue_engagement = self.tissue_engagement_bucket(target)
+                self.targets.set_value(index=ind, col='Tissue engagement bucket', value=tissue_engagement)
         except Exception as e:
             print("Exception in bucketing function:")
             print(e)
@@ -2699,12 +2865,32 @@ class Downloader(QThread):
         # Well, not quite. I think it can be visualised as picking the lowest result from a set of sub-decisions.
         # Though if we reach a level 2, we can potentially push it up to a level 1 if additional considerations are met.
         
-        def trial_withdrawn():
-            ctd = self.clinical_trial_data.get(target['GeneID'])
-            if ctd:
-                if ctd.get('status'):
-                    if ctd['status'] == "Withdrawn":
-                        return True
+        def has_insufficient_info():
+            if not target['HGNC Name'] or not target['Uniprot ID']:
+                return True
+            # jaxlab = self.jackson_lab_data[self.jackson_lab_data['HGNC Name'] == target['HGNC Name']]
+            # if "No phenotypes found" in jaxlab['MGI Gene/Marker ID'].tolist():
+            #     return True
+        
+        def boxed_warnings():
+            drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
+            drugs_with_warnings = drugs[drugs['Boxed warning'] == True]
+            if len(drugs_with_warnings.index):
+                return True
+        
+        def on_target_withdrawn_drug():
+            # Check if the target has known drugs that have on-target effects (interactions) and has boxed warnings.
+            # Upper-case all of their names, because some sources are inconsistently formatted.
+            drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
+            withdrawn_drugs_for_this_target = drugs[drugs['Withdrawn'].notnull()]
+            # If we have anything directly marked as a withdrawn drug, return a result immediately.
+            if len(withdrawn_drugs_for_this_target.index):
+                return True
+            
+            # Let's also get a list of drugs which are on record as having toxicity issues (t3db). 
+            toxx = self.drug_tox_data[self.drug_tox_data['HGNC Name'] == target['HGNC Name']]
+            if len(toxx.index):
+                return True
         
         def on_target_boxed_warnings():
             # Check if the target has known drugs that have on-target effects (interactions) and has boxed warnings.
@@ -2714,261 +2900,112 @@ class Downloader(QThread):
             drugs_with_warnings_names = [i.upper() for i in drugs_with_warnings['Drug name'].tolist()]
             # Look up names of interacting drugs from DGIdb
             interactions = self.dgidb_interactions[self.dgidb_interactions['gene_name'] == target['HGNC Name']]
-            interactions_names = [str(i).upper() for i in interactions['drug_name'].tolist()]
+            interactions_names = [str(i).upper() for i in interactions['drug_name'].tolist() if i]
             # Look up names of interacting drugs from ChEMBL; add to previous list.
             interactions2 = self.chembl_interactions[self.chembl_interactions['hgnc_symbol'] == target['HGNC Name']]
-            interactions_names.extend([str(i).upper() for i in interactions2['MOLECULE_NAME'].tolist()])
-            # Now check all the known drugs with warnings against the interacting list.
+            interactions_names.extend([str(i).upper() for i in interactions2['MOLECULE_NAME'].tolist() if i])
+            # Check all the known drugs with warnings against the interacting list.
             if list(set(drugs_with_warnings_names).intersection(interactions_names)):
                 return True
-        
-        def known_unsafe():
-            # Check this first, to save a bit of lookup time.
-            if trial_withdrawn():
-                return True
-            if on_target_boxed_warnings():
-                return True
-        
-        def warning_clinical_trials():
-            drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
-            drugs_with_warnings = drugs[drugs['Boxed warning'] == True]
-            drugs_with_warnings_names = drugs_with_warnings['Drug name'].tolist()
-            
-            interacting_drugs = self.dgidb_interactions[self.dgidb_interactions['gene_name'] == target['HGNC Name']]
-            interacting_drug_names = [i.lower() for i in interacting_drugs['drug_name'].dropna().tolist()]
-            
-            # if len(drugs_with_warnings) > 0:
-            if len(list(set(drugs_with_warnings_names).intersection(interacting_drug_names))) > 0:
-                return 4
-            else:
-                return 2
-        
-        def human_disease_association_severity():
-            # dis = set(self.HPO_genes_to_diseases[self.HPO_genes_to_diseases['HGNC Name'] == target['HGNC Name']][
-            #               'Disease'].tolist())
-            # sev_dis = list(dis.intersection(self.serious_disease_phenotypes))
-            # # if len(list(set(self.HPO_genes_to_diseases[self.HPO_genes_to_diseases['HGNC Name'] == target['HGNC Name']][
-            # #                     'Disease'].tolist()).intersection(set(self.serious_disease_phenotypes)))) > 0:
-            # if len(sev_dis) > 0:
-            #     return 3
-            # else:
-            #     return 2
-            
-            # This is a terrible idea. Come up with something better.
-            # OK, got it. Use toxicology_associations instead.
-            
-            return 2
-        
-        def on_target_boxed_warnings_as_bucket_scores():
-            # Check if the target has known drugs that have on-target effects (interactions) and has boxed warnings.
-            # Upper-case all of their names, because some sources are inconsistently formatted.
-            drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
-            drugs_with_warnings = drugs[drugs['Boxed warning'] == True]
-            drugs_with_warnings_names = [i.upper() for i in drugs_with_warnings['Drug name'].tolist()]
-            # Look up names of interacting drugs from DGIdb
-            interactions = self.dgidb_interactions[self.dgidb_interactions['gene_name'] == target['HGNC Name']]
-            interactions_names = [str(i).upper() for i in interactions['drug_name'].tolist()]
-            # Look up names of interacting drugs from ChEMBL; add to previous list.
-            interactions2 = self.chembl_interactions[self.chembl_interactions['hgnc_symbol'] == target['HGNC Name']]
-            interactions_names.extend([str(i).upper() for i in interactions2['MOLECULE_NAME'].tolist()])
-            # If we have no known interactions, return 4 for unknown
-            if len(interactions_names) == 0:
-                return 4
-            # Now check all the known drugs with warnings against the interacting list.
-            if list(set(drugs_with_warnings_names).intersection(interactions_names)):
-                return 3
-            else:
-                return 2
-        
-        def toxicology_associations():
-            if target['Uniprot ID']:
-                if target['Uniprot ID'] in self.t3db_drug_moas['Target UniProt ID']:
-                    return 3
-                else:
-                    return 2
-            else: 
-                return 4
         
         def mouse_phenotype_association_severity():
             def contain(s, subs):
                 # Does string s contain any of substrings subs?)
                 return any(i in s for i in subs)
-            
             # Do any of the jaxlab phenotype descriptors for this target contain any of the substrings identified as 
             # pointing to severe phenoptyes we want to give warnings about?
             jaxlab = self.jackson_lab_data[self.jackson_lab_data['HGNC Name'] == target['HGNC Name']]
-            if "No phenotypes found" in jaxlab['MGI Gene/Marker ID'].tolist():
-                return 4
-            elif any(contain(i, self.mouse_severe_phenotypes_patterns) for i in jaxlab['Term'].tolist()):
-                return 3
-            else:
-                return 2
-        
-        def cancer_driver():
-            if target['Mutational cancer driver genes']:
-                return 3
-            elif target['COSMIC somatic mutations in cancer genes']:
-                return 3
-            else:
-                return 2
-        
-        def essential_gene():
-            if target['Core fitness gene']:
-                return 3
-            elif target['CRISPR-screened core fitness gene']:
-                return 3
-            elif target['OGEE human essential gene'] in ['Essential', 'Conditional']:
-                return 3
-            else:
-                return 2
-        
-        def expression_localisation():
-            # Here, I'm going to use a pretty simple set of thresholds. To be declared sufficiently localised, a target
-            # should be significantly more highly expressed in tissues and cell types picked out by the user in the
-            # disease profile (p <= 0.05). I want to adjust for multiple testing too. This will have to use the number 
-            # of rows in self.targets. 
-            
-            # I want to get z-scores for these data first. I set up some scalars earlier to do that. 
-            # Since the datasets can't readily be merged until after I've looked up homology, there has to be several 
-            # different scalars, and I have to merge them now. 
-            
-            # We also have to deal with cases where users may not have supplied distinguishing values for one or the 
-            # other categories - i.e., they have selected no tissues or cell types as relevant, or selected everything.
-            
-            # I also need to do error handling. 
-            
-            def scale(data, scaler):
-                return pd.Series(scaler.transform(data.fillna(0).values.reshape(1, -1))[0], index=data.index)
-            
-            tissues_t_test = None
-            cells_t_test = None
-            # Work out differential expression (mean relevant/mean irrelevant) too, while I'm at it.
-            tissues_diff = None
-            cells_diff = None
-            
-            # If we're using IDs that are not present here for whatever reason, we'll run into errors.
-            # Handle it gracefully. 
-            zscores = pd.DataFrame()
-            try:
-                # bl_hum = scale(data=target[self.barreslab_human.columns], 
-                bl_hum = scale(data=target[self.bl_human_cell_types],
-                               scaler=self.bl_human_scaler)
-                zscores = pd.concat([zscores, bl_hum])
-            except Exception as e:
-                print("Exception in expression localisation bucketing function (Barres lab human):")
-                print(e)
-                traceback.print_exc()
-            
-            try:
-                # print(target[self.barreslab_mouse['Raw Data'].columns])
-                # bl_mus = scale(data=target[self.barreslab_mouse['Raw Data'].columns[2:]], 
-                bl_mus = scale(data=target[self.bl_mouse_cell_types],
-                               scaler=self.bl_mouse_scaler)
-                zscores = pd.concat([zscores, bl_mus])
-            except Exception as e:
-                print("Exception in expression localisation bucketing function (Barres lab mouse):")
-                print(e)
-                traceback.print_exc()
-            
-            try:
-                # print(target[self.gtexdata_tissue_types])
-                gtex = scale(data=target[self.gtexdata_tissue_types],
-                             scaler=self.gtex_scaler)
-                zscores = pd.concat([zscores, gtex])
-            except Exception as e:
-                print("Exception in expression localisation bucketing function (GTEX):")
-                print(e)
-                traceback.print_exc()
-            
-            # Could it possibly be? Try making this a series instead of a dataframe. 
-            zscores = zscores[0]
-            
-            # Work out as many t-tests as possible. If we can do both, great; if only one or the other, fine.
-            # To be able to do a test, the user must have set some tissues/cells as relevant, and others as irrelevant.
-            if len(zscores) > 0:
-                # print(zscores)
-                if self.disease_profile['tissues']['relevant'] and self.disease_profile['tissues']['irrelevant']:
-                    tissues_t_test = ttest_ind(zscores[list(self.disease_profile['tissues']['relevant'])],
-                                               zscores[list(self.disease_profile['tissues']['irrelevant'])])
-                    tissues_diff = target[self.disease_profile['tissues']['relevant']].mean() / target[
-                        self.disease_profile['tissues']['irrelevant']].mean()
-                if self.disease_profile['cell types']['relevant'] and self.disease_profile['cell types']['irrelevant']:
-                    cells_t_test = ttest_ind(zscores[self.disease_profile['cell types']['relevant']],
-                                             zscores[self.disease_profile['cell types']['irrelevant']])
-                    cells_diff = target[self.disease_profile['cell types']['relevant']].mean() / target[
-                        self.disease_profile['cell types']['irrelevant']].mean()
-            
-            # Now, work out a course of action depending on the test results available.
-            if tissues_t_test and cells_t_test:
-                if tissues_t_test.pvalue <= self.significance_threshold \
-                        and cells_t_test.pvalue <= self.significance_threshold \
-                        and tissues_diff >= self.diff_expression_threshold \
-                        and cells_diff >= self.diff_expression_threshold:
-                    return 2
-                elif tissues_diff >= self.diff_expression_threshold and cells_diff >= self.diff_expression_threshold:
-                    return 2
-                else:
-                    return 3
-            elif tissues_t_test:
-                if tissues_t_test.pvalue <= self.significance_threshold \
-                        and tissues_diff >= self.diff_expression_threshold:
-                    return 2
-                elif tissues_diff >= self.diff_expression_threshold:
-                    return 2
-                else:
-                    return 3
-            elif cells_t_test:
-                if cells_t_test.pvalue <= self.significance_threshold and cells_diff >= self.diff_expression_threshold:
-                    return 2
-                elif cells_diff >= self.diff_expression_threshold:
-                    return 2
-                else:
-                    return 3
-            else:
-                return 4
-        
-        def top_level_safety_reqs():
-            # If everything else in the bucket is 2 (which we checked prior to calling this), and there are known safe 
-            # drug interactions, then this target scores as high as possible for safety. (I.e., 1).
-            existing_safe_drugs = self.existing_drug_data[
-                (self.existing_drug_data['HGNC Name'] == target['HGNC Name']) & (
-                self.existing_drug_data['Max clinical phase'] == 'Phase IV')]
-            if len(existing_safe_drugs) > 0:
+            if any(contain(i, self.mouse_severe_phenotypes_patterns) for i in jaxlab['Term'].tolist()):
                 return True
         
-        name = target['HGNC Name']
-        if not name:
-            name = "[No gene name available]"
-        # uniprot_id = target['Uniprot ID']
-        # ensembl_id = target['GeneID']
-        # if failed_clinical_trials(name) or drug_withdrawn(ensembl_id):
-        # if trial_withdrawn():
-        # if known_unsafe():
-        #     return 5
-        # else:
-        bucket = [
-                  # warning_clinical_trials(),
-                  # human_disease_association_severity(),
-                  on_target_boxed_warnings_as_bucket_scores(),
-                  toxicology_associations(),
-                  mouse_phenotype_association_severity(),
-                  cancer_driver(),
-                  essential_gene(),
-                  expression_localisation()]
+        def cancer_driver():
+            if target['Mutational cancer driver genes'] or target['COSMIC somatic mutations in cancer genes']:
+                return True
         
-        labels = ["Boxed warnings from known protein-drug interactions", "Toxicology associations", 
-                  "Mouse disease association severity", "Cancer driver", "Essential gene", "Expression localisation"]
-        print("Safety buckets for target " + name)
-        for l, b in zip(labels, [str(i) for i in bucket]):
-            print(l + ": " + b)
+        def essential_gene():
+            if target['Core fitness gene'] or target['CRISPR-screened core fitness gene'] \
+                    or target['OGEE human essential gene'] in ['Essential', 'Conditional']:
+                return True
         
-        # Get the highest number from our outcomes. Sort it.
-        bucket.sort(reverse=True)
-        outval = bucket[0]
-        if outval == 2 and top_level_safety_reqs():
-            return 1
+        def single_gene_disorder():
+            # Query the rare disease associations data for disease associations from OrphaNet (which are single-gene 
+            # rare diseases)
+            df = self.monogenic_disease_association_data[self.monogenic_disease_association_data['HGNC Name'] == target['HGNC Name']]
+            if len(df.index):
+                return True
+        
+        def hpa_enrichment_in_high_risk_tissues():
+            # If this target is tissue enriched, group enriched or tissue enhanced in any HPA tissue marked by the user 
+            # as a high risk site for overexpression 
+            if [i for i in hpa_all_tissues if
+                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_high_risk'])]:
+                return True
+
+        def hpa_enrichment_in_low_risk_tissues():
+            # If this target is tissue enriched, group enriched or tissue enhanced in any HPA tissue marked by the user 
+            # as a low risk site for overexpression 
+            if [i for i in hpa_all_tissues if
+                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_low_risk'])]:
+                return True
+
+        def hpo_associations_in_high_risk_tissues():
+            # If this target is a gene marked as being associated with abnormalities in any HPO tissue marked by the 
+            # user as an unacceptable site for abnormalities, return a 1 point result here. 
+            if [i for i in hpo_annotation_names if
+                    target[i] and i in list(self.disease_profile['hpo']['high_risk'])]:
+                return True
+        
+        def has_phase4_drug():
+            drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
+            if 'Phase IV' in drugs['Max clinical phase'].tolist():
+                return True
+        
+        def has_phase3_drug():
+            drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
+            if 'Phase III' in drugs['Max clinical phase'].tolist():
+                return True
+        
+        def has_existing_drug():
+            drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
+            if "No existing drugs found" not in drugs['Drug name']:
+                return True
+        
+        if has_existing_drug():
+            if not boxed_warnings():
+                if has_phase4_drug():
+                    return 1
+                if has_phase3_drug():
+                    return 2
+        if has_insufficient_info():
+            return 6
+        
+        points = 0
+        if on_target_boxed_warnings():
+            points += 1
+        if mouse_phenotype_association_severity():
+            points += 1
+        if cancer_driver():
+            points += 2
+        if essential_gene():
+            points += 1
+        if single_gene_disorder():
+            points += 1
+        if hpa_enrichment_in_high_risk_tissues():
+            points += 2
+        if hpa_enrichment_in_low_risk_tissues():
+            points += 1
+        if hpo_associations_in_high_risk_tissues():
+            points += 1
+        
+        if on_target_withdrawn_drug():
+            return 5
+        
+        if points >= 2: 
+            return 4
+        elif points > 0:
+            return 3
         else:
-            return outval
+            return 2
     
     def get_homologs(self, uniprot_id):
         # Technically, paralog is the more correct term here, but even that refers to a qualitative rather than the
@@ -3002,8 +3039,17 @@ class Downloader(QThread):
         # Score for small-molecule druggability.
         
         def is_protein():
-            if "protein_coding" in target['RNA class'].split(", "):
-                return True
+            if target['RNA class']:
+                if "protein_coding" in target['RNA class'].split(", "):
+                    return True
+        
+        def is_tclin_or_tchem(uniprot_id):
+            # According to the Pharos website, there are also cases where targets are annotated as being Tclin/Tchem
+            # (and therefore high priority targets for drug development) by manual curation. Include those here.
+            if uniprot_id in self.pharos_ligand_data_library:
+                pharos_data = self.pharos_ligand_data_library[uniprot_id]
+                if pharos_data['Pharos'] in ["Tclin", "Tchem"]:
+                    return True
         
         def has_ligand(uniprot_id):
             # Does this target have a ligand of any kind?
@@ -3027,13 +3073,12 @@ class Downloader(QThread):
         def has_high_activity_ligand(uniprot_id):
             # Similar to has_ligand, but restricts to ligands passing activity thresholds only.
             if uniprot_id in self.pharos_ligand_data_library:
-                if self.pharos_ligand_data_library.get(uniprot_id).get('ChEMBL ligand'):
-                    return True
+                pharos_data = self.pharos_ligand_data_library[uniprot_id]
             else:
                 pharos_data = self.download_pharos_drug_and_ligand_count(uniprot_id)
-                if pharos_data:
-                    if pharos_data.get('ChEMBL ligand'):
-                        return True
+            if pharos_data:
+                if pharos_data.get('ChEMBL ligand'):
+                    return True
         
         def has_druggable_protein_class(uniprot_id):
             # Similar to has_ligand, but looks at whether the target has a druggable class listed in Pharos.
@@ -3093,25 +3138,20 @@ class Downloader(QThread):
                 if has_druggable_pocket(hlog):
                     return True
         
-        def split_gene_families(gene_family_id):
-            # This bit of code gets used several times, so it should be a function.
-            # Why do we need it? Because there may be multiple family IDs in this string!
-            return gene_family_id.split("|")
-        
         def family_has_structure(gene_family_id):
-            for f in split_gene_families(gene_family_id):
+            for f in self.split_gene_families(gene_family_id):
                 family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
                 if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)]['number of 3d structure'].any():
                     return True
         
         def family_has_druggable_pocket(gene_family_id):
-            for f in split_gene_families(gene_family_id):
+            for f in self.split_gene_families(gene_family_id):
                 family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
                 if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)]['number of 3d structure druggable'].any():
                     return True
         
         def family_has_ligand(gene_family_id):
-            for f in split_gene_families(gene_family_id):
+            for f in self.split_gene_families(gene_family_id):
                 family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
                 for genename in family_genes:
                     uid = self.get_uniprot_id_for_gene_name(genename)
@@ -3119,7 +3159,7 @@ class Downloader(QThread):
                         return True
         
         def family_has_high_activity_ligand(gene_family_id):
-            for f in split_gene_families(gene_family_id):
+            for f in self.split_gene_families(gene_family_id):
                 family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
                 for genename in family_genes:
                     uid = self.get_uniprot_id_for_gene_name(genename)
@@ -3131,6 +3171,8 @@ class Downloader(QThread):
         uniprot_id = target['Uniprot ID']
         gene_family_id = target['Gene family ID'] 
         if name and uniprot_id:
+            if is_tclin_or_tchem(uniprot_id):
+                return 1
             if has_ligand(uniprot_id):
                 if has_small_molecule_ligand():
                     if has_high_activity_ligand(uniprot_id):
@@ -3167,7 +3209,10 @@ class Downloader(QThread):
             if is_protein():
                 return 13
         # If nothing else has come through up to this point... 
-        return 14
+        if is_protein():
+            return 13
+        else:
+            return 14
     
     def feasibility_bucket(self, target):
         # Similar to other bucketing functions, I'll make a set of sub-functions that make individual component calls
@@ -3307,6 +3352,41 @@ class Downloader(QThread):
                     return 3
         else:
             return 4
+    
+    def tissue_engagement_bucket(self, target):
+        def is_housekeeping_gene():
+            if target['Housekeeping gene']:
+                return True
+        
+        def enriched_in_high_risk_tissue():
+            if [i for i in hpa_all_tissues if
+                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_high_risk'])]:
+                return True
+        
+        def enriched_in_low_risk_tissue():
+            if [i for i in hpa_all_tissues if
+                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_low_risk'])]:
+                return True
+        
+        def not_enriched_in_any_tissue():
+            if not [i for i in hpa_all_tissues if target["HPA " + i]]:
+                return True
+        
+        def enriched_in_target_tissue():
+            if [i for i in hpa_all_tissues if
+                    target["HPA " + i] and i in list(self.disease_profile['hpa']['on_target'])]:
+                return True
+        
+        if enriched_in_high_risk_tissue():
+            return 5
+        if enriched_in_low_risk_tissue():
+            return 4
+        if is_housekeeping_gene():
+            return 3
+        if not_enriched_in_any_tissue():
+            return 2
+        if enriched_in_target_tissue():
+            return 1
 
 
 class PandasModel(QtCore.QAbstractTableModel):
@@ -3494,7 +3574,8 @@ class Ui_ViewDataDialog(object):
             ViewDataDialog.setObjectName("ViewDataDialog")
             ViewDataDialog.resize(1200, 800)
             # ViewDataDialog is a reference to the parent class, which lets us get at the excel sheet I loaded in there
-            self.sheetnames = list(ViewDataDialog.data.keys())
+            # self.sheetnames = list(ViewDataDialog.data.keys())
+            self.sheetnames = [i for i in sheet_order if i not in unacceptably_large_sheets and i != "Bucket guide"]
             
             self.verticalLayout_4 = QtWidgets.QVBoxLayout(ViewDataDialog)
             self.verticalLayout_4.setObjectName("verticalLayout_4")
@@ -3522,33 +3603,34 @@ class Ui_ViewDataDialog(object):
             self.tabWidget = QtWidgets.QTabWidget(ViewDataDialog)
             self.verticalLayout_4.addWidget(self.tabWidget)
             
-            # This should give us a table view for every sheet in the excel file.
+            # This should give us a table view for every sheet in the excel file - with a few notable exceptions.
             self.tabs = dict()
             self.tableViews = dict()
             self.verticalLayouts = dict()
-            for sheet in [i for i in sheet_order if i not in unacceptably_large_sheets]:
-                if sheet in self.sheetnames:
-                    print("Setting up tab for " + sheet)
-                    self.tabs[sheet] = QtWidgets.QWidget()
-                    self.tabs[sheet].setObjectName("tab")
-                    self.verticalLayouts[sheet] = QtWidgets.QVBoxLayout(self.tabs[sheet])
-                    self.verticalLayouts[sheet].setObjectName("verticalLayout")
-                    self.tableViews[sheet] = QTableView(self.tabs[sheet])
-                    self.tableViews[sheet].setObjectName("tableView")
-                    self.verticalLayouts[sheet].addWidget(self.tableViews[sheet])
-                    self.tableViews[sheet].raise_()
-                    self.tableViews[sheet].raise_()
-                    self.tabWidget.addTab(self.tabs[sheet], "")
-                    self.tableViews[sheet].setSortingEnabled(True)
-                    self.tableViews[sheet].setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-                    self.tableViews[sheet].setModel(ViewDataDialog.models[sheet])
-                    # If a checkbox column is required for this tab, set it up here 
-                    # if 'Checked' in ViewDataDialog.models[sheet].orig_data.columns.tolist():
-                    # print("Trying to set delegate for " + sheet)
-                    # self.tableViews[sheet].openPersistentEditor()
-                    # self.tableViews[sheet].setItemDelegateForColumn(0, CheckBoxDelegate(self.tableViews[sheet]))
-                    # self.tableViews[sheet].setItemDelegateForColumn(0, OtherCheckboxDelegate(self.tableViews[sheet]))
-                    self.tableViews[sheet].resizeColumnsToContents()
+            # for sheet in [i for i in sheet_order if i not in unacceptably_large_sheets and i != "Bucket guide"]:
+            #     if sheet in self.sheetnames:
+            for sheet in self.sheetnames:
+                print("Setting up tab for " + sheet)
+                self.tabs[sheet] = QtWidgets.QWidget()
+                self.tabs[sheet].setObjectName("tab")
+                self.verticalLayouts[sheet] = QtWidgets.QVBoxLayout(self.tabs[sheet])
+                self.verticalLayouts[sheet].setObjectName("verticalLayout")
+                self.tableViews[sheet] = QTableView(self.tabs[sheet])
+                self.tableViews[sheet].setObjectName("tableView")
+                self.verticalLayouts[sheet].addWidget(self.tableViews[sheet])
+                self.tableViews[sheet].raise_()
+                self.tableViews[sheet].raise_()
+                self.tabWidget.addTab(self.tabs[sheet], "")
+                self.tableViews[sheet].setSortingEnabled(True)
+                self.tableViews[sheet].setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+                self.tableViews[sheet].setModel(ViewDataDialog.models[sheet])
+                # If a checkbox column is required for this tab, set it up here 
+                # if 'Checked' in ViewDataDialog.models[sheet].orig_data.columns.tolist():
+                # print("Trying to set delegate for " + sheet)
+                # self.tableViews[sheet].openPersistentEditor()
+                # self.tableViews[sheet].setItemDelegateForColumn(0, CheckBoxDelegate(self.tableViews[sheet]))
+                # self.tableViews[sheet].setItemDelegateForColumn(0, OtherCheckboxDelegate(self.tableViews[sheet]))
+                self.tableViews[sheet].resizeColumnsToContents()
             # This bit also wants to be kept separate, for ease of copy-pasting.
             search_types = ['HGNC Name', 'GeneID', 'Uniprot ID']
             self.comboBox_searchType.addItems(search_types)
@@ -3653,7 +3735,7 @@ class DataWindow(QDialog):
         self.make_models()
     
     def make_models(self):
-        for sheet in [i for i in self.data if i not in unacceptably_large_sheets]:
+        for sheet in [i for i in self.data if i not in unacceptably_large_sheets and i != "Bucket guide"]:
             try:
                 checkbox_col = False
                 ls = self.data[sheet]['series'].tolist()
@@ -3894,43 +3976,35 @@ class DiseaseProfileSelectorDialog(QDialog):
             self.setWindowIcon(QIcon('logo2.png'))
             self.downloader = downloader
             
-            # Do this now, if not done yet. 
-            # We need these values in order to set up an expression profile, but we don't need to load them on startup
-            # every single time. 
-            if default_profile == None:
-                # This takes a while if we DO have to do it, so let's make a warning dialog.
-                QMessageBox.information(self,
-                                        'Loading data',
-                                        "These fields must be populated by reading several files.\nThis may take a minute or two.",
-                                        QMessageBox.Ok)
-                self.downloader.read_expression_datasets()
+            self.ui.pushButton_offTarget_lowRisk_to_OnTarget_hpa.clicked.connect(
+                lambda: self.move_between_lists(source_list=self.ui.listWidget_offTarget_lowRisk_hpa,
+                                                destination_list=self.ui.listWidget_onTarget_hpa))
+            self.ui.pushButton_onTarget_to_OffTarget_lowRisk_hpa.clicked.connect(
+                lambda: self.move_between_lists(source_list=self.ui.listWidget_onTarget_hpa,
+                                                destination_list=self.ui.listWidget_offTarget_lowRisk_hpa))
+
+            self.ui.pushButton_offTarget_highRisk_to_offTarget_lowRisk_hpa.clicked.connect(
+                lambda: self.move_between_lists(source_list=self.ui.listWidget_offTarget_highRisk_hpa,
+                                                destination_list=self.ui.listWidget_offTarget_lowRisk_hpa))
+            self.ui.pushButton_offTarget_lowRisk_to_offTarget_highRisk_hpa.clicked.connect(
+                lambda: self.move_between_lists(source_list=self.ui.listWidget_offTarget_lowRisk_hpa,
+                                                destination_list=self.ui.listWidget_offTarget_highRisk_hpa))
             
-            self.ui.pushButton_makeIrrelevant_gtex.clicked.connect(
-                lambda: self.move_between_lists(self.ui.listWidget_relevant_gtex,
-                                                self.ui.listWidget_irrelevant_gtex))
-            self.ui.pushButton_makeRelevant_gtex.clicked.connect(
-                lambda: self.move_between_lists(self.ui.listWidget_irrelevant_gtex,
-                                                self.ui.listWidget_relevant_gtex))
-            self.ui.pushButton_makeIrrelevant_cell_types.clicked.connect(
-                lambda: self.move_between_lists(self.ui.listWidget_relevant_cell_types,
-                                                self.ui.listWidget_irrelevant_cell_types))
-            self.ui.pushButton_makeRelevant_cell_types.clicked.connect(
-                lambda: self.move_between_lists(self.ui.listWidget_irrelevant_cell_types,
-                                                self.ui.listWidget_relevant_cell_types))
-            # for i in self.downloader.general_tissues:
-            for i in self.downloader.gtexdata_tissue_types:
-                self.ui.listWidget_irrelevant_gtex.addItem(i)
-                self.ui.listWidget_irrelevant_gtex.sortItems()
-            # for i in downloader.cell_types:
-            for i in self.downloader.bl_human_cell_types + self.downloader.bl_mouse_cell_types:
-                self.ui.listWidget_irrelevant_cell_types.addItem(i)
-                self.ui.listWidget_irrelevant_cell_types.sortItems()
-            # Now this stuff needs to be done in the right order, so that we open up on the previous setting.
+            self.ui.pushButton_highRisk_to_lowRisk_hpo.clicked.connect(
+                lambda: self.move_between_lists(source_list=self.ui.listWidget_highRisk_hpo,
+                                                destination_list=self.ui.listWidget_lowRisk_hpo))
+            self.ui.pushButton_lowRisk_to_highRisk_hpo.clicked.connect(
+                lambda: self.move_between_lists(source_list=self.ui.listWidget_lowRisk_hpo,
+                                                destination_list=self.ui.listWidget_highRisk_hpo))
             self.populate_saved_profiles_list()
+            self.ui.pushButton_reset_default.clicked.connect(self.set_default)
+            # Now this stuff needs to be done in the right order, so that we open up on the previous setting.
             if default_profile:
                 self.ui.comboBox_selectProfile.setCurrentIndex(
                     self.ui.comboBox_selectProfile.findText(default_profile['name']))
                 self.existing_profile_selected(self.ui.comboBox_selectProfile.findText(default_profile['name']))
+            else:
+                self.set_default()
             self.ui.comboBox_selectProfile.currentIndexChanged.connect(self.existing_profile_selected)
             self.ui.lineEdit_newProfileName.textChanged.connect(self.activate_save_button)
             self.ui.pushButton_save.clicked.connect(self.save_profile)
@@ -3938,6 +4012,30 @@ class DiseaseProfileSelectorDialog(QDialog):
             print("Exception in disease profile thing:")
             print(e)
             traceback.print_exc()
+    
+    def set_default(self):
+        # Put everything back in a starting position.
+        self.ui.listWidget_onTarget_hpa.clear()
+        self.ui.listWidget_offTarget_lowRisk_hpa.clear()
+        self.ui.listWidget_offTarget_highRisk_hpa.clear()
+        self.ui.listWidget_lowRisk_hpo.clear()
+        self.ui.listWidget_highRisk_hpo.clear()
+        for i in hpa_all_tissues:
+            if i in ['Heart muscle', 'Liver', 'Kidney']:
+                self.ui.listWidget_offTarget_highRisk_hpa.addItem(i)
+            else:
+                self.ui.listWidget_offTarget_lowRisk_hpa.addItem(i)
+            self.ui.listWidget_offTarget_lowRisk_hpa.sortItems()
+            self.ui.listWidget_offTarget_highRisk_hpa.sortItems()
+        for i in hpo_annotation_names:
+            if i in ['Cardiovascular', 'Hepatic', 'Renal']:
+                self.ui.listWidget_highRisk_hpo.addItem(i)
+            else:
+                self.ui.listWidget_lowRisk_hpo.addItem(i)
+            self.ui.listWidget_lowRisk_hpo.sortItems()
+            self.ui.listWidget_highRisk_hpo.sortItems()
+        self.ui.comboBox_selectProfile.setCurrentText("Default")
+        self.ui.lineEdit_newProfileName.clear()
     
     def activate_save_button(self):
         # Is there anything written in the 'Save new profile' line edit? If so, activate the Save button. If not, 
@@ -3955,6 +4053,8 @@ class DiseaseProfileSelectorDialog(QDialog):
     def populate_saved_profiles_list(self):
         try:
             profiles = [os.path.basename(i) for i in glob.glob("disease_profiles/*.json")]
+            if 'Default' not in profiles:
+                profiles.append('Default')
             for i in profiles:
                 profname = re.sub('.json', '', i)
                 # profname = re.sub("_", " ", profname)
@@ -3968,12 +4068,13 @@ class DiseaseProfileSelectorDialog(QDialog):
         try:
             return {
                 "name": self.ui.lineEdit_newProfileName.text() or self.ui.comboBox_selectProfile.currentText(),
-                "tissues": {
-                    "relevant": self.list_items_in_listwidget(self.ui.listWidget_relevant_gtex),
-                    "irrelevant": self.list_items_in_listwidget(self.ui.listWidget_irrelevant_gtex)},
-                "cell types": {
-                    "relevant": self.list_items_in_listwidget(self.ui.listWidget_relevant_cell_types),
-                    "irrelevant": self.list_items_in_listwidget(self.ui.listWidget_irrelevant_cell_types)}
+                "hpa": {
+                    "on_target": self.list_items_in_listwidget(self.ui.listWidget_onTarget_hpa),
+                    "off_target_low_risk": self.list_items_in_listwidget(self.ui.listWidget_offTarget_lowRisk_hpa),
+                    "off_target_high_risk": self.list_items_in_listwidget(self.ui.listWidget_offTarget_highRisk_hpa)},
+                "hpo": {
+                    "low_risk": self.list_items_in_listwidget(self.ui.listWidget_lowRisk_hpo),
+                    "high_risk": self.list_items_in_listwidget(self.ui.listWidget_highRisk_hpo)}
             }
         except Exception as e:
             print("Exception in disease profile thing:")
@@ -3987,6 +4088,7 @@ class DiseaseProfileSelectorDialog(QDialog):
                 json.dump(profile, outfile)
             # I should also update the combobox to have this name in it and selected!
             self.populate_saved_profiles_list()
+            self.ui.lineEdit_newProfileName.clear()
             # self.ui.comboBox_selectProfile.setCurrentText(profile['name'])
             self.ui.comboBox_selectProfile.setCurrentIndex(self.ui.comboBox_selectProfile.findText(profile['name']))
         except Exception as e:
@@ -3998,15 +4100,20 @@ class DiseaseProfileSelectorDialog(QDialog):
         try:
             selected_profile = self.ui.comboBox_selectProfile.itemText(index)
             print("Selected " + selected_profile)
-            profdata = json.load(open("disease_profiles/" + selected_profile + ".json"))
-            self.ui.listWidget_irrelevant_gtex.clear()
-            self.ui.listWidget_irrelevant_gtex.addItems(profdata['tissues']['irrelevant'])
-            self.ui.listWidget_relevant_gtex.clear()
-            self.ui.listWidget_relevant_gtex.addItems(profdata['tissues']['relevant'])
-            self.ui.listWidget_irrelevant_cell_types.clear()
-            self.ui.listWidget_irrelevant_cell_types.addItems(profdata['cell types']['irrelevant'])
-            self.ui.listWidget_relevant_cell_types.clear()
-            self.ui.listWidget_relevant_cell_types.addItems(profdata['cell types']['relevant'])
+            if selected_profile == "Default":
+                self.set_default()
+            else:
+                profdata = json.load(open("disease_profiles/" + selected_profile + ".json"))
+                self.ui.listWidget_onTarget_hpa.clear()
+                self.ui.listWidget_offTarget_lowRisk_hpa.clear()
+                self.ui.listWidget_offTarget_highRisk_hpa.clear()
+                self.ui.listWidget_lowRisk_hpo.clear()
+                self.ui.listWidget_highRisk_hpo.clear()
+                self.ui.listWidget_onTarget_hpa.addItems(profdata['hpa']['on_target'])
+                self.ui.listWidget_offTarget_lowRisk_hpa.addItems(profdata['hpa']['off_target_low_risk'])
+                self.ui.listWidget_offTarget_highRisk_hpa.addItems(profdata['hpa']['off_target_high_risk'])
+                self.ui.listWidget_lowRisk_hpo.addItems(profdata['hpo']['low_risk'])
+                self.ui.listWidget_highRisk_hpo.addItems(profdata['hpo']['high_risk'])
         except Exception as e:
             print("Exception in disease profile thing:")
             print(e)
@@ -4229,11 +4336,17 @@ class BucketingHelp(QDialog):
             QPixmap(os.getcwd() + '/images/antibodyability_tree.png').scaledToWidth(
                 self.ui.label_antibodyability_image_tree.width() - invpad))
         self.ui.label_modality_image_criteria.setPixmap(
-            QPixmap(os.getcwd() + '/images/new_modality.png').scaledToWidth(
+            QPixmap(os.getcwd() + '/images/modality.png').scaledToWidth(
                 self.ui.label_modality_image_criteria.width() - invpad))
         self.ui.label_modality_image_tree.setPixmap(
-            QPixmap(os.getcwd() + '/images/new_modality_tree.png').scaledToWidth(
+            QPixmap(os.getcwd() + '/images/modality_tree.png').scaledToWidth(
                 self.ui.label_modality_image_tree.width() - invpad))
+        self.ui.label_tissue_engagement_image_criteria.setPixmap(
+            QPixmap(os.getcwd() + '/images/tissue_engagement.png').scaledToWidth(
+                self.ui.label_tissue_engagement_image_criteria.width() - invpad))
+        self.ui.label_tissue_engagement_image_tree.setPixmap(
+            QPixmap(os.getcwd() + '/images/tissue_engagement_tree.png').scaledToWidth(
+                self.ui.label_tissue_engagement_image_tree.width() - invpad))
 
 
 class Settings(QDialog):
@@ -4296,7 +4409,7 @@ class MainWindow(QMainWindow):
         self.ui.progressBar.setValue(0)
         
         self.current_disease_profile = None
-        self.read_default_disease_profile()
+        self.read_active_disease_profile()
         # Same for the 'about' dialog. 
         # self.ui.pushButton_about.clicked.connect(self.launch_about_dialog)
     
@@ -4336,13 +4449,13 @@ class MainWindow(QMainWindow):
     def update_status(self, i):
         self.ui.lineEdit_status.setText(i)
     
-    def read_default_disease_profile(self):
-        path = "disease_profiles/default.txt"
+    def read_active_disease_profile(self):
+        path = "disease_profiles/active.txt"
         if os.path.exists(path):
             with open(path, "r") as f:
                 name = f.read()
                 if name:
-                    print("Reading default disease profile " + name)
+                    print("Reading active disease profile " + name)
                     self.ui.lineEdit_disease_profile.setText(name)
                     profile = json.load(open("disease_profiles/" + name + ".json"))
                     self.current_disease_profile = profile
@@ -4359,15 +4472,15 @@ class MainWindow(QMainWindow):
         return api_keys
     
     def manage_disease_profiles(self):
-        self.update_status("Opening datasets required for disease profile specification...")
+        # self.update_status("Opening datasets required for disease profile specification...")
         # That doesn't work very well; better to pop up a dialog or something. 
         try:
             dlg = DiseaseProfileSelectorDialog(self.downloaderThread, self.current_disease_profile)
             if dlg.exec_():
                 new_profile = dlg.make_some_json_output()
                 self.ui.lineEdit_disease_profile.setText(new_profile['name'])
-                # Save the name of this profile in disease_profiles/default.txt
-                with open("disease_profiles/default.txt", "w") as f:
+                # Save the name of this profile in disease_profiles/active.txt
+                with open("disease_profiles/active.txt", "w") as f:
                     f.write(new_profile['name'])
                 self.current_disease_profile = new_profile
                 self.downloaderThread.disease_profile = new_profile
