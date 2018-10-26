@@ -3178,7 +3178,7 @@ class Downloader(QThread):
                     if has_high_activity_ligand(uniprot_id):
                         return 1
                     elif has_endogenous_ligand():
-                        return 10
+                        return 8
                     else:
                         return 5
                 else:
@@ -3194,14 +3194,14 @@ class Downloader(QThread):
             if homolog_has_structure(uniprot_id) and homolog_has_druggable_pocket(uniprot_id):
                 return 4
             if gene_family_id:
-                if family_has_ligand(gene_family_id):
-                    if family_has_high_activity_ligand(gene_family_id):
-                        return 7
-                    else:
-                        return 8
                 if family_has_structure(gene_family_id):
                     if family_has_druggable_pocket(gene_family_id):
+                        return 7
+                if family_has_ligand(gene_family_id):
+                    if family_has_high_activity_ligand(gene_family_id):
                         return 9
+                    else:
+                        return 10
             if has_druggable_protein_class(uniprot_id):
                 return 11
             if has_structure(uniprot_id):
