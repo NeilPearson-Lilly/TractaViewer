@@ -1,45 +1,45 @@
+import glob
+import json
+import os
+import re
+import shutil
+import sys
+import traceback
+import xml
+from collections import OrderedDict
+from io import StringIO
+from os.path import expanduser, basename
+from pprint import pprint
+from time import sleep
+
+import numpy as np
+import pandas as pd
+import pweave
+import requests
+import xmltodict
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QDialog, QFileDialog, QMessageBox, QTableView, \
-    QSplashScreen, QItemDelegate, QCheckBox, QStyle, QStyleOptionButton
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QItemSelectionModel, QVariant
 from PyQt5.QtGui import QPixmap, QIcon, QIntValidator
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QItemSelectionModel, pyqtSlot, QVariant
-import gui
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QDialog, QFileDialog, QMessageBox, QTableView, \
+    QSplashScreen
+from biomart import BiomartServer
+from bs4 import BeautifulSoup
+# import PyEntrezId.Conversion
+from intermine.webservice import Service
+from opentargets import OpenTargetsClient
+from pandas import ExcelWriter
+from pypdb import describe_pdb
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+from sklearn.preprocessing import StandardScaler
+
 import about
 import bucketing_help
 import disease_profile_dialog
-import settings
-import os
-import shutil
-from os.path import expanduser, basename
-import sys
-import re
-import pandas as pd
-from pandas import ExcelWriter
-import numpy as np
-from scipy.stats import ttest_ind
-from sklearn.preprocessing import StandardScaler
-from pprint import pprint
-import requests
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
-import xmltodict
-import glob
-import xml
-from bs4 import BeautifulSoup
-import json
-from io import StringIO
-# import PyEntrezId.Conversion
-from intermine.webservice import Service
-from biomart import BiomartServer
-from collections import OrderedDict
-from opentargets import OpenTargetsClient
-import itertools
-from time import sleep
-import textinsert
-import traceback
+import gui
 import makereports_dialog
-import pweave
-from pypdb import describe_pdb
+import settings
+import textinsert
 
 # pd.set_option('display.max_columns', 100)
 # pd.set_option('display.width', 220)
@@ -48,10 +48,10 @@ pd.set_option('display.max_rows', None)
 
 # Useful variables
 disease_association_score_threshold = 0.5
-sheet_order = ['External data input', 'Basic information', 'Buckets', 'Bucket guide', 'GTEX', 'Barres mouse', 
-               'Barres human', 'HPA Enrichment', 'Risk factors', 'Rare disease associations', 
-               'Common disease associations', 'MGI mouse', 'CanSAR', 'Protein structures', 'Antitargets', 
-               'Core fitness', 'SM Druggability', 'AB-ability', 'Feasibility', 'Existing drugs', 'Drug toxicology', 
+sheet_order = ['External data input', 'Basic information', 'Buckets', 'Bucket guide', 'GTEX', 'Barres mouse',
+               'Barres human', 'HPA Enrichment', 'Risk factors', 'Rare disease associations',
+               'Common disease associations', 'MGI mouse', 'CanSAR', 'Protein structures', 'Antitargets',
+               'Core fitness', 'SM Druggability', 'AB-ability', 'Feasibility', 'Existing drugs', 'Drug toxicology',
                'Pharos', 'GWAS', 'Protein-protein interactions', 'Literature']
 
 # We're going to put these in a separate file and not display these in the GUI, because they bring everything to a crawl
@@ -62,7 +62,13 @@ unacceptably_large_sheets = ['Protein-protein interactions', 'Literature']
 bool_cols = ['GPCR', 'Predicted membrane protein', 'Predicted secreted protein', 'Surfaceome membership (human)',
              'Surfaceome membership (mouse)', 'Mutational cancer driver genes',
              'COSMIC somatic mutations in cancer genes', 'Core fitness gene', 'CRISPR-screened core fitness gene',
-             'Membrane protens predicted by MDM', 'GPCRHMM predicted membrane proteins', ]
+             "Membrane proteins predicted by MDM", "MEMSAT3 predicted membrane proteins",
+             "MEMSAT-SVM predicted membrane proteins", "Phobius predicted membrane proteins",
+             "SCAMPI predicted membrane proteins", "SPOCTOPUS predicted membrane proteins",
+             "THUMBUP predicted membrane proteins", "TMHMM predicted membrane proteins",
+             "GPCRHMM predicted membrane proteins", "Secreted proteins predicted by MDSEC",
+             "SignalP predicted secreted proteins", "Phobius predicted secreted proteins",
+             "SPOCTOPUS predicted secreted proteins"]
 
 # One from MGI: these are the phenotype classes one up from the root. 
 high_level_phenotypes = ['adipose tissue', 'behavior/neurological', 'cardiovascular system', 'cellular',
@@ -81,7 +87,8 @@ for fl in hpa_toxfiles:
 hpa_all_tissues = sorted(list(set(hpa_all_tissues)))
 
 hpo_annotation_files = glob.glob("Data/HPO_assocs/*_diseases.csv")
-hpo_annotation_names = sorted(list(set([re.sub("_diseases.csv", '', os.path.basename(i)) for i in hpo_annotation_files])))
+hpo_annotation_names = sorted(
+    list(set([re.sub("_diseases.csv", '', os.path.basename(i)) for i in hpo_annotation_files])))
 
 
 # Useful funcs
@@ -201,7 +208,7 @@ class Downloader(QThread):
         self.mgi_phenotypes_to_top_level_classifications = {}
         self.identity_scores = None
         self.evalues = None
-
+        
         # Make lookup tables that can be dynamically filled as we go, reducing repeated querying. 
         self.pharos_ligand_data_library = {}
         self.drugebility_data_for_uniprot_ids = {}
@@ -311,7 +318,7 @@ class Downloader(QThread):
         
         # A fairly comprehensive basic ID lookup table, courtesy of GeneNames
         if not self.id_lookup_table:
-            self.id_lookup_table = pd.read_table("Data/genenames_all_gene_ids_lookup_table.tsv", 
+            self.id_lookup_table = pd.read_table("Data/genenames_all_gene_ids_lookup_table.tsv",
                                                  converters={i: str for i in range(0, 100)})  # Read all cols as strings
             # Not bad, but that leaves us with empty strings, which we don't want. Replace them with NaN
             self.id_lookup_table = self.id_lookup_table.replace('', np.nan)
@@ -369,13 +376,13 @@ class Downloader(QThread):
         if not self.HPO_genes_to_diseases:
             self.status.emit("Reading Human Protein Ontology data...")
             self.HPO_genes_to_diseases = pd.read_csv("Data/HPO_genes_to_diseases.txt", sep="\t", skiprows=1,
-                names=['EntrezID', 'HGNC Name', 'Disease'])
+                                                     names=['EntrezID', 'HGNC Name', 'Disease'])
         
         if not self.HPO_diseases_to_genes:
             self.status.emit("Reading Human Protein Ontology data...")
             self.HPO_diseases_to_genes = pd.read_csv("Data/HPO_diseases_to_genes.txt", sep="\t",
-                skiprows=1, names=['Disease', 'EntrezID', 'HGNC Name'])
-
+                                                     skiprows=1, names=['Disease', 'EntrezID', 'HGNC Name'])
+        
         # Read a list of tissues we've picked out as being likely toxicity indicators from the Human Protein Atlas.
         # We can now auto-populate some lists that will help us keep this organised as desired.
         for fl in hpa_toxfiles:
@@ -437,7 +444,7 @@ class Downloader(QThread):
         if not self.dgidb_interactions:
             self.dgidb_interactions = pd.read_table("Data/DGIdb_interactions.tsv")
         if not self.chembl_interactions:
-            self.chembl_interactions = pd.read_csv("Data/chembl_drugtargets_named-18_13_46_02.csv", 
+            self.chembl_interactions = pd.read_csv("Data/chembl_drugtargets_named-18_13_46_02.csv",
                                                    encoding="ISO-8859-1")
         
         # IUPHAR gene-ligand interaction database
@@ -463,7 +470,6 @@ class Downloader(QThread):
         # Read a list of withdrawn drugs from the WITHDRAWN database
         if not self.withdrawn_withdrawn:
             self.withdrawn_withdrawn = pd.read_csv("Data/withdrawn_withdrawn_compounds.csv")
-        
         
         # We can now get Jackson lab mouse phenotype data, but it's organised in a form that is incompatible with the 
         # existing targets table. (Multiple lines per gene, basically - and no human reader-friendly means of 
@@ -497,7 +503,8 @@ class Downloader(QThread):
         for col in self.poss_existing_cols:
             if col not in self.targets.columns.tolist():
                 self.targets[col] = None
-        for i in self.colnms:
+        for i in self.colnms + self.hpa_predicted_secreted_protein_subclasses \
+                + self.hpa_predicted_membrane_protein_subclasses:
             self.targets[i] = None
         # Strip whitespace characters from important columns (which may or may not currently contain data, but will at
         # least now consistently exist).
@@ -589,9 +596,23 @@ class Downloader(QThread):
                            '4TM proteins predicted by MDM', '3TM proteins predicted by MDM',
                            '2TM proteins predicted by MDM',
                            '>9TM proteins predicted by MDM'}
-        self.poss_existing_cols = ['Uniprot ID', 'HGNC Name', 'GeneID', 'series', 'Approved Name', 'Previous Name', 
+        self.hpa_predicted_membrane_protein_subclasses = ["Membrane proteins predicted by MDM",
+                                                          "MEMSAT3 predicted membrane proteins",
+                                                          "MEMSAT-SVM predicted membrane proteins",
+                                                          "Phobius predicted membrane proteins",
+                                                          "SCAMPI predicted membrane proteins",
+                                                          "SPOCTOPUS predicted membrane proteins",
+                                                          "THUMBUP predicted membrane proteins",
+                                                          "TMHMM predicted membrane proteins",
+                                                          "GPCRHMM predicted membrane proteins"]
+        self.hpa_predicted_secreted_protein_subclasses = ["Secreted proteins predicted by MDSEC",
+                                                          "SignalP predicted secreted proteins",
+                                                          "Phobius predicted secreted proteins",
+                                                          "SPOCTOPUS predicted secreted proteins"]
+        
+        self.poss_existing_cols = ['Uniprot ID', 'HGNC Name', 'GeneID', 'series', 'Approved Name', 'Previous Name',
                                    'Previous Symbols', 'Synonyms', 'Mouse Ensembl ID', 'Mouse Uniprot ID', 'MGI Symbol',
-                                   'Mouse associated gene name', 'Entrez ID', 'Chromosome', 
+                                   'Mouse associated gene name', 'Entrez ID', 'Chromosome',
                                    'HCOP Rat', 'HCOP Worm', 'HCOP Mouse', 'HCOP Fly', 'HCOP Zebrafish', 'Gene OMIM ID']
         
         # This is not an ideal way of doing this, but it prevents some quite annoying load times and removes some 
@@ -645,13 +666,13 @@ class Downloader(QThread):
         self.colnms = ['Input type', 'RNA class', 'Locus group', 'Feature type', 'Mammalian phenotype ID', 'MPID term',
                        'cerebral cortex', 'Astrocytes', 'Neuron', 'Oligodendrocyte Precursor Cell',
                        'Newly Formed Oligodendrocyte',
-                       'Myelinating Oligodendrocytes', 'Microglia', 'Endothelial Cells', 
+                       'Myelinating Oligodendrocytes', 'Microglia', 'Endothelial Cells',
                        # 'Consensus', 'LY druggability',
                        'EBI Tractable', 'EBI Druggable', 'EBI Ensemble',
                        'Domain ID', 'PDB', 'Druggable class', 'Pharos', 'ChEMBL drug', 'ChEMBL ligand',
                        'ChEMBL low-activity ligand', 'Is protein',
                        'Main location', 'Top level protein classes', 'Second level protein classes',
-                       'Third level protein classes', 'Housekeeping gene', 
+                       'Third level protein classes', 'Housekeeping gene',
                        'Has withdrawn drug', 'Withdrawn drug list',
                        'Membrane proteins predicted by MDM', 'GPCRHMM predicted membrane proteins', '# TM segments',
                        'Predicted secreted proteins', 'Mutational cancer driver genes',
@@ -661,7 +682,7 @@ class Downloader(QThread):
                        'HPA query', 'GTEX query', 'Location data query', 'DrugEBIlity query', 'Core fitness query',
                        'MGI query', 'Barres lab mouse query', 'Barres lab human query', 'Pharos query', 'Pharos ID',
                        'OpenTargets query', 'GWAS query', 'GPCR', 'Predicted membrane protein',
-                       'Predicted secreted protein', 'VerSeDa secretome membership', 'Extracellular matrix component', 
+                       'Predicted secreted protein', 'VerSeDa secretome membership', 'Extracellular matrix component',
                        'Subcellular location summary', 'Subcellular location verification',
                        'Main subcellular locations', 'Additional subcellular locations', 'GOIDs',
                        'Surfaceome membership (human)', 'Surfaceome membership confidence (human)',
@@ -695,13 +716,13 @@ class Downloader(QThread):
                        'Safety bucket', 'SM Druggability bucket', 'Feasibility bucket', 'AB-ability bucket',
                        'New modality bucket', 'Tissue engagement bucket'
                        ]
-        self.basicinfocols = ['series', 'HGNC Name', 'GeneID', 'Approved Name', 'Previous Name', 'Previous Symbols', 
-                              'Synonyms', 'Uniprot ID', 'Entrez ID', 'Chromosome', 'Gene family', 'Gene family ID', 
+        self.basicinfocols = ['series', 'HGNC Name', 'GeneID', 'Approved Name', 'Previous Name', 'Previous Symbols',
+                              'Synonyms', 'Uniprot ID', 'Entrez ID', 'Chromosome', 'Gene family', 'Gene family ID',
                               'Functional summary', 'Mouse Ensembl ID', 'Mouse Uniprot ID', 'MGI Symbol',
                               'HCOP Rat', 'HCOP Worm', 'HCOP Fly', 'HCOP Zebrafish', 'HCOP Mouse', 'Locus group',
                               'Is protein', 'RNA class', 'Top level protein classes']
         self.bucketcols = ['series', 'HGNC Name', 'GeneID', 'Safety bucket', 'SM Druggability bucket',
-                           'Feasibility bucket', 'AB-ability bucket', 'New modality bucket', 'Tissue engagement bucket', 
+                           'Feasibility bucket', 'AB-ability bucket', 'New modality bucket', 'Tissue engagement bucket',
                            'Pharos']
         self.gtexcols = ['series', 'HGNC Name', 'GeneID', 'GTEX query']
         self.barresmousecols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'Barres lab mouse query',
@@ -733,21 +754,21 @@ class Downloader(QThread):
                                 'Human Endothelial: 13yo', 'Human Endothelial: 47yo', 'Human whole cortex: 45yo',
                                 'Human whole cortex: 63yo', 'Human whole cortex: 25yo', 'Human whole cortex: 53yo']
         self.hpaenrichmentcols = ['series', 'HGNC Name', 'GeneID', 'HPA query']
-        self.riskfactorcols = ['series', 'HGNC Name', 'GeneID', 
-                               'Phenotype risk score',  'Withdrawn drug ratio',
+        self.riskfactorcols = ['series', 'HGNC Name', 'GeneID',
+                               'Phenotype risk score', 'Withdrawn drug ratio',
                                'Mutational cancer driver genes', 'COSMIC somatic mutations in cancer genes',
                                'Housekeeping gene']
-        self.diseasecols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'OpenTargets query', 'Approved Name', 
+        self.diseasecols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'OpenTargets query', 'Approved Name',
                             'Source', 'Disease name', 'Disease ID', 'Association score', 'Genetic association']
         self.jacksonlabcols = ['series', 'HGNC Name', 'GeneID', 'Approved name', 'Input', 'Input Type',
                                'MGI Gene/Marker ID', 'Mouse associated gene symbol', 'Feature type', 'MP ID', 'Term',
                                'Top-level phenotype', 'Description']
         self.cansarcols = ['series', 'HGNC Name', 'GeneID']
-        self.antitargetcols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'Antitarget gene name', 
+        self.antitargetcols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'Antitarget gene name',
                                'Antitarget Uniprot ID', 'Protein seq. identity (%)']
         self.corefitnesscols = ['series', 'HGNC Name', 'GeneID', 'Core fitness query', 'Core fitness gene',
                                 'CRISPR-screened core fitness gene', 'OGEE human essential gene']
-        self.druggabilitycols = ['series', 'HGNC Name', 'GeneID', 'DrugEBIlity query', 
+        self.druggabilitycols = ['series', 'HGNC Name', 'GeneID', 'DrugEBIlity query',
                                  # 'Consensus', 'LY druggability',
                                  'EBI Tractable', 'EBI Druggable', 'EBI Ensemble',
                                  # 'Top Druggable Domain Ensemble',
@@ -756,19 +777,19 @@ class Downloader(QThread):
                                  'Ligand', 'Endogenous ligand', 'Main location', 'Top level protein classes',
                                  'Second level protein classes',
                                  'Third level protein classes', 'Membrane proteins predicted by MDM',
-                                 'GPCRHMM predicted membrane proteins', '# TM segments', 
+                                 'GPCRHMM predicted membrane proteins', '# TM segments',
                                  # 'Predicted secreted proteins'
                                  'Has withdrawn drug', 'Withdrawn drug list'
                                  ]
         self.existingdrugscols = ['series', 'HGNC Name', 'GeneID', 'Disease', 'Association score', 'Drug name',
-                                  'Molecule type', 'Max clinical phase', 'Boxed warning', 'Drug ID', 'Withdrawn', 
+                                  'Molecule type', 'Max clinical phase', 'Boxed warning', 'Drug ID', 'Withdrawn',
                                   'Withdrawn reason', 'Withdrawn country', 'Withdrawn year']
         self.pharoscols = ['series', 'HGNC Name', 'GeneID', 'Pharos query', 'Pharos ID', 'Druggable class', 'Pharos',
                            'ChEMBL drug', 'ChEMBL ligand', 'ChEMBL low-activity ligand', 'Pharos literature']
         self.gwascols = ['series', 'HGNC Name', 'GeneID', 'Source', 'Study name', 'ID', 'Phenotypes', 'Highest P-value',
                          'Num. markers', 'link']
         self.antibodyabilitycols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'GPCR', 'Predicted membrane protein',
-                                    'Predicted secreted protein', 'VerSeDa secretome membership', 
+                                    'Predicted secreted protein', 'VerSeDa secretome membership',
                                     'Extracellular matrix component',
                                     'Subcellular location summary', 'Subcellular location verification',
                                     'Main subcellular locations', 'Additional subcellular locations', 'GOIDs',
@@ -1043,11 +1064,11 @@ class Downloader(QThread):
     
     def set_display_name(self, target):
         # A systematic way of choosing which ID of a target to display in the GUI.
-        if target['HGNC Name'] not in [None, np.nan]:
+        if target['HGNC Name'] not in [None, np.nan, 'nan']:
             return target['HGNC Name']
-        elif target['GeneID'] not in [None, np.nan]:
+        elif target['GeneID'] not in [None, np.nan, 'nan']:
             return "[unnamed target " + target['GeneID'] + "]"
-        elif target['Uniprot ID'] not in [None, np.nan]:
+        elif target['Uniprot ID'] not in [None, np.nan, 'nan']:
             return "[unnamed target " + target['Uniprot ID'] + "]"
         else:
             exit("Something has gone very wrong with gene input.")
@@ -1058,28 +1079,29 @@ class Downloader(QThread):
         try:
             # Now that I get all this stuff from a file rather than web queries, I can quite radically simplify this:
             df = None
-            if target['HGNC Name'] not in [None, np.nan]:
+            if target['HGNC Name'] not in [None, np.nan, 'nan']:
                 df = self.id_lookup_table[self.id_lookup_table['Approved Symbol'] == target['HGNC Name']]
-            elif target['GeneID'] not in [None, np.nan]:
+            elif target['GeneID'] not in [None, np.nan, 'nan']:
                 df = self.id_lookup_table[self.id_lookup_table['Ensembl Gene ID'] == target['GeneID']]
-            elif target['Uniprot ID'] not in [None, np.nan]:
-                df = self.id_lookup_table[self.id_lookup_table['UniProt ID(supplied by UniProt)'] == target['Uniprot ID']]
+            elif target['Uniprot ID'] not in [None, np.nan, 'nan']:
+                df = self.id_lookup_table[
+                    self.id_lookup_table['UniProt ID(supplied by UniProt)'] == target['Uniprot ID']]
             else:
                 exit("Extremely incorrect input data found; should have been caught long before this!")
             
             if len(df):
                 # The names of things in the lookup table and my table often don't quite match. Sort that out here.
                 #                    GeneNames                       Mine
-                pairs_of_things = [["Approved Name",                "Approved Name"],
-                                   ["Entrez Gene ID",               "Entrez ID"],
-                                   ["Previous Symbols",             "Previous Symbols"],
-                                   ["Previous Name",                "Previous Name"],
-                                   ["Synonyms",                     "Synonyms"],
-                                   ["OMIM ID(supplied by OMIM)",    "Gene OMIM ID"],
-                                   ["Gene Family Name",             "Gene family"],
-                                   ["Gene Family ID",               "Gene family ID"],
-                                   ["Chromosome",                   "Chromosome"],
-                                   ["Locus Group",                  "Locus group"]]
+                pairs_of_things = [["Approved Name", "Approved Name"],
+                                   ["Entrez Gene ID", "Entrez ID"],
+                                   ["Previous Symbols", "Previous Symbols"],
+                                   ["Previous Name", "Previous Name"],
+                                   ["Synonyms", "Synonyms"],
+                                   ["OMIM ID(supplied by OMIM)", "Gene OMIM ID"],
+                                   ["Gene Family Name", "Gene family"],
+                                   ["Gene Family ID", "Gene family ID"],
+                                   ["Chromosome", "Chromosome"],
+                                   ["Locus Group", "Locus group"]]
                 # Now that that's taken care of, we can just go and pull those out and slot them into self.targets
                 for i in pairs_of_things:
                     gn_name = i[0]
@@ -1093,110 +1115,110 @@ class Downloader(QThread):
                     if my_name == "Gene family ID" and value:
                         for gfid in self.split_gene_families(value):
                             self.get_protein_family_info(gfid)
-            
-            # 
-            # url = None
-            # if target['HGNC Name'] not in [None, np.nan]:
-            #     url = "http://rest.genenames.org/fetch/symbol/" + target['HGNC Name']
-            # elif target['GeneID'] not in [None, np.nan]:
-            #     url = "http://rest.genenames.org/fetch/ensembl_gene_id/" + target['GeneID']
-            # elif target['Uniprot ID'] not in [None, np.nan]:
-            #     url = "http://rest.genenames.org/fetch/uniprot_ids/" + target['Uniprot ID']
-            #     print("url = " + url)
-            # else:
-            #     exit("Extremely incorrect input data found; should have been caught long before this!")
-            # response = requests.get(url)
-            # if response.status_code != 200:
-            #     self.warnings.emit("GeneNames query failed with code " + str(response.status_code))
-            #     if response.status_code == 500:
-            #         sleep(10)
-            #         annotations = self.get_genenames_annotations(ind, target, displayname)
-            #         return annotations
-            # else:
-            #     data = xmltodict.parse(response.content)
-            #     # pprint(data)
-            #     if int(data.get('response').get('result').get('@numFound')) > 0:
-            #         print("    approved name")
-            #         if data.get('response').get('result').get('doc').get('str'):
-            #             arr = data['response']['result']['doc']['str']
-            #             if not isinstance(arr, list):
-            #                 arr = [arr]
-            #             approved_name = [i.get('#text') for i in arr if i['@name'] == "name"]
-            #             if pd.isnull(target['Approved Name']) and approved_name:
-            #                 self.targets.set_value(index=ind, col='Approved Name', value=approved_name[0])
-            #                 target['Approved Name'] = approved_name
-            #                 # print("    prev names")
-            #                 # pprint(data['response']['result']['doc']['arr'])
-            #             entrez_id = [i.get('#text') for i in arr if i['@name'] == "entrez_id"]
-            #             if pd.isnull(target['Entrez ID']) and entrez_id:
-            #                 self.targets.set_value(index=ind, col='Entrez ID', value=entrez_id[0])
-            #                 target['Entrez ID'] = entrez_id
-            #         if data.get('response').get('result').get('doc').get('arr'):
-            #             arr = data['response']['result']['doc']['arr']
-            #             if not isinstance(arr, list):
-            #                 arr = [arr]
-            #             prev_names = [i['str'] for i in arr if i['@name'] == "prev_name"]
-            #             if prev_names:
-            #                 if isinstance(prev_names, str):
-            #                     # Sometimes this gives you strings when there's only one; we ALWAYS want a list
-            #                     prev_names = [prev_names]
-            #                 elif isinstance(prev_names[0], list):
-            #                     # On the other hand, we may need to flatten a list of lists into a list. 
-            #                     prev_names = list(itertools.chain(*prev_names))
-            #             print("    prev symbols")
-            #             prev_symbols = [i['str'] for i in arr if
-            #                             i['@name'] == "prev_symbol"]
-            #             if prev_symbols:
-            #                 if isinstance(prev_symbols, str):
-            #                     prev_symbols = [prev_symbols]
-            #                 elif isinstance(prev_symbols[0], list):
-            #                     prev_symbols = list(itertools.chain(*prev_symbols))
-            #             # We can now fill missing values as appropriate, if replacements are available.
-            #             if pd.isnull(target['Previous Name']) and prev_names + prev_symbols:
-            #                 self.targets.set_value(index=ind, col='Previous Name',
-            #                                        value=", ".join(uniq(prev_names + prev_symbols)))
-            #             print("    alias symbols")
-            #             alias_symbols = [i['str'] for i in arr if i['@name'] == "alias_symbol"]
-            #             if alias_symbols:
-            #                 if isinstance(alias_symbols, str):
-            #                     alias_symbols = [alias_symbols]
-            #                 elif isinstance(alias_symbols[0], list):
-            #                     alias_symbols = list(itertools.chain(*alias_symbols))
-            #             if pd.isnull(target['Synonyms']) and alias_symbols:
-            #                 self.targets.set_value(index=ind, col='Synonyms', value=", ".join(uniq(alias_symbols)))
-            #             # Can we get OMIM IDs (for disease associations) from that too?
-            #             print("    omim")
-            #             omim_id = [i['str'] for i in arr if i['@name'] == "omim_id"]
-            #             if omim_id:
-            #                 if isinstance(omim_id, str):
-            #                     omim_id = [omim_id]
-            #                 elif isinstance(omim_id[0], list):
-            #                     omim_id = list(itertools.chain(*omim_id))
-            #             if pd.isnull(target['Gene OMIM ID']) and omim_id:
-            #                 self.targets.set_value(index=ind, col='Gene OMIM ID', value=omim_id)
-            #                 # GeneNames data can also tell us if this gene is in the Endogenous Ligands family. 
-            #                 # But that's not what we want - we want to know if the gene HAS an endogenous ligand, rather
-            #                 # than whether it IS one. 
-            #             print("    gene families")
-            #             gene_families = flatten([i['str'] for i in arr if i['@name'] == "gene_family"])
-            #             if gene_families:
-            #                 target['Gene family'] = "|".join(gene_families)
-            #                 self.targets.set_value(index=ind, col='Gene family',
-            #                                        value=target['Gene family'])
-            #             # if 'Endogenous ligands' in gene_families:
-            #             #     self.targets.set_value(index=ind, col='Endogenous ligand', value=True)
-            #             # Get gene family ID - we'll drill down a bit further with that shortly, then use it when 
-            #             # doing some bucketing.
-            #             gene_family_id = flatten([i['int'] for i in arr if i['@name'] == "gene_family_id"])
-            #             # That can have multiple entries sometimes, it turns out. Plan appropriately.
-            #             # print(gene_family_id)
-            #             # pprint(data)
-            #             if gene_family_id:
-            #                 target['Gene family ID'] = "|".join(gene_family_id)
-            #                 self.targets.set_value(index=ind, col='Gene family ID',
-            #                                        value=target['Gene family ID'])
-            #                 for fam_id in gene_family_id:
-            #                     self.get_protein_family_info(fam_id)
+                            
+                            # 
+                            # url = None
+                            # if target['HGNC Name'] not in [None, np.nan, 'nan']:
+                            #     url = "http://rest.genenames.org/fetch/symbol/" + target['HGNC Name']
+                            # elif target['GeneID'] not in [None, np.nan, 'nan']:
+                            #     url = "http://rest.genenames.org/fetch/ensembl_gene_id/" + target['GeneID']
+                            # elif target['Uniprot ID'] not in [None, np.nan, 'nan']:
+                            #     url = "http://rest.genenames.org/fetch/uniprot_ids/" + target['Uniprot ID']
+                            #     print("url = " + url)
+                            # else:
+                            #     exit("Extremely incorrect input data found; should have been caught long before this!")
+                            # response = requests.get(url)
+                            # if response.status_code != 200:
+                            #     self.warnings.emit("GeneNames query failed with code " + str(response.status_code))
+                            #     if response.status_code == 500:
+                            #         sleep(10)
+                            #         annotations = self.get_genenames_annotations(ind, target, displayname)
+                            #         return annotations
+                            # else:
+                            #     data = xmltodict.parse(response.content)
+                            #     # pprint(data)
+                            #     if int(data.get('response').get('result').get('@numFound')) > 0:
+                            #         print("    approved name")
+                            #         if data.get('response').get('result').get('doc').get('str'):
+                            #             arr = data['response']['result']['doc']['str']
+                            #             if not isinstance(arr, list):
+                            #                 arr = [arr]
+                            #             approved_name = [i.get('#text') for i in arr if i['@name'] == "name"]
+                            #             if pd.isnull(target['Approved Name']) and approved_name:
+                            #                 self.targets.set_value(index=ind, col='Approved Name', value=approved_name[0])
+                            #                 target['Approved Name'] = approved_name
+                            #                 # print("    prev names")
+                            #                 # pprint(data['response']['result']['doc']['arr'])
+                            #             entrez_id = [i.get('#text') for i in arr if i['@name'] == "entrez_id"]
+                            #             if pd.isnull(target['Entrez ID']) and entrez_id:
+                            #                 self.targets.set_value(index=ind, col='Entrez ID', value=entrez_id[0])
+                            #                 target['Entrez ID'] = entrez_id
+                            #         if data.get('response').get('result').get('doc').get('arr'):
+                            #             arr = data['response']['result']['doc']['arr']
+                            #             if not isinstance(arr, list):
+                            #                 arr = [arr]
+                            #             prev_names = [i['str'] for i in arr if i['@name'] == "prev_name"]
+                            #             if prev_names:
+                            #                 if isinstance(prev_names, str):
+                            #                     # Sometimes this gives you strings when there's only one; we ALWAYS want a list
+                            #                     prev_names = [prev_names]
+                            #                 elif isinstance(prev_names[0], list):
+                            #                     # On the other hand, we may need to flatten a list of lists into a list. 
+                            #                     prev_names = list(itertools.chain(*prev_names))
+                            #             print("    prev symbols")
+                            #             prev_symbols = [i['str'] for i in arr if
+                            #                             i['@name'] == "prev_symbol"]
+                            #             if prev_symbols:
+                            #                 if isinstance(prev_symbols, str):
+                            #                     prev_symbols = [prev_symbols]
+                            #                 elif isinstance(prev_symbols[0], list):
+                            #                     prev_symbols = list(itertools.chain(*prev_symbols))
+                            #             # We can now fill missing values as appropriate, if replacements are available.
+                            #             if pd.isnull(target['Previous Name']) and prev_names + prev_symbols:
+                            #                 self.targets.set_value(index=ind, col='Previous Name',
+                            #                                        value=", ".join(uniq(prev_names + prev_symbols)))
+                            #             print("    alias symbols")
+                            #             alias_symbols = [i['str'] for i in arr if i['@name'] == "alias_symbol"]
+                            #             if alias_symbols:
+                            #                 if isinstance(alias_symbols, str):
+                            #                     alias_symbols = [alias_symbols]
+                            #                 elif isinstance(alias_symbols[0], list):
+                            #                     alias_symbols = list(itertools.chain(*alias_symbols))
+                            #             if pd.isnull(target['Synonyms']) and alias_symbols:
+                            #                 self.targets.set_value(index=ind, col='Synonyms', value=", ".join(uniq(alias_symbols)))
+                            #             # Can we get OMIM IDs (for disease associations) from that too?
+                            #             print("    omim")
+                            #             omim_id = [i['str'] for i in arr if i['@name'] == "omim_id"]
+                            #             if omim_id:
+                            #                 if isinstance(omim_id, str):
+                            #                     omim_id = [omim_id]
+                            #                 elif isinstance(omim_id[0], list):
+                            #                     omim_id = list(itertools.chain(*omim_id))
+                            #             if pd.isnull(target['Gene OMIM ID']) and omim_id:
+                            #                 self.targets.set_value(index=ind, col='Gene OMIM ID', value=omim_id)
+                            #                 # GeneNames data can also tell us if this gene is in the Endogenous Ligands family. 
+                            #                 # But that's not what we want - we want to know if the gene HAS an endogenous ligand, rather
+                            #                 # than whether it IS one. 
+                            #             print("    gene families")
+                            #             gene_families = flatten([i['str'] for i in arr if i['@name'] == "gene_family"])
+                            #             if gene_families:
+                            #                 target['Gene family'] = "|".join(gene_families)
+                            #                 self.targets.set_value(index=ind, col='Gene family',
+                            #                                        value=target['Gene family'])
+                            #             # if 'Endogenous ligands' in gene_families:
+                            #             #     self.targets.set_value(index=ind, col='Endogenous ligand', value=True)
+                            #             # Get gene family ID - we'll drill down a bit further with that shortly, then use it when 
+                            #             # doing some bucketing.
+                            #             gene_family_id = flatten([i['int'] for i in arr if i['@name'] == "gene_family_id"])
+                            #             # That can have multiple entries sometimes, it turns out. Plan appropriately.
+                            #             # print(gene_family_id)
+                            #             # pprint(data)
+                            #             if gene_family_id:
+                            #                 target['Gene family ID'] = "|".join(gene_family_id)
+                            #                 self.targets.set_value(index=ind, col='Gene family ID',
+                            #                                        value=target['Gene family ID'])
+                            #                 for fam_id in gene_family_id:
+                            #                     self.get_protein_family_info(fam_id)
         
         except Exception as e:
             print("Exception in GeneNames function:")
@@ -1244,7 +1266,7 @@ class Downloader(QThread):
     def get_biomart_annotations(self, ind, target, displayname):
         # Query BioMart for more advanced IDs, including homologs and some RNA stuff.
         try:
-            if target['GeneID'] not in [None, np.nan]:
+            if target['GeneID'] not in [None, np.nan, 'nan']:
                 # self.status.emit("Downloading data for target " + displayname + "... (BioMart annotations)")
                 self.emit_download_status(target, displayname, "BioMart annotations")
                 attrs = ['celegans_homolog_associated_gene_name',
@@ -1299,7 +1321,7 @@ class Downloader(QThread):
             # I'm not 100% sure on this, but it's the closest I've been able to find.
             # It's got to be its own query; BioMart INSISTS on it.
             print("rna classes")
-            if target['GeneID'] not in [None, np.nan]:
+            if target['GeneID'] not in [None, np.nan, 'nan']:
                 attrs = ['transcript_biotype']
                 response = self.biomart_dataset.search({'filters': {'ensembl_gene_id': target['GeneID']},
                                                         'attributes': attrs})
@@ -1323,7 +1345,7 @@ class Downloader(QThread):
     def get_ncbi_annotations(self, ind, target, displayname):
         # Get NCBI IDs
         try:
-            if target['Entrez ID'] not in [None, np.nan]:
+            if target['Entrez ID'] not in [None, np.nan, 'nan']:
                 self.emit_download_status(target, displayname, "NCBI annotations")
                 url = "https://www.ncbi.nlm.nih.gov/gene/" + str(target['Entrez ID']) + "?report=xml&format=text"
                 response = requests.get(url)
@@ -1394,7 +1416,7 @@ class Downloader(QThread):
     
     def get_hpa_data(self, ind, target, displayname):
         try:
-            if target['GeneID'] not in [None, np.nan]:
+            if target['GeneID'] not in [None, np.nan, 'nan']:
                 self.emit_download_status(target, displayname, "Human Protein Atlas")
                 # Get xml from the human protein atlas concerning this gene
                 url = "http://www.proteinatlas.org/" + target['GeneID'] + ".xml"
@@ -1429,12 +1451,18 @@ class Downloader(QThread):
                         if classes.intersection(self.thirdlevel):
                             self.targets.set_value(index=ind, col='Third level protein classes',
                                                    value=", ".join(classes.intersection(self.thirdlevel)))
-                        # Membrane proteins predicted by MDM (true/false)
-                        if 'Membrane proteins predicted by MDM' in classes:
-                            self.targets.set_value(index=ind, col='Membrane proteins predicted by MDM', value=True)
-                        # GPCRHMM predicted membrane proteins (true/false)
-                        if 'GPCRHMM predicted membrane proteins' in classes:
-                            self.targets.set_value(index=ind, col='GPCRHMM predicted membrane proteins', value=True)
+                        # # Membrane proteins predicted by MDM (true/false)
+                        # if 'Membrane proteins predicted by MDM' in classes:
+                        #     self.targets.set_value(index=ind, col='Membrane proteins predicted by MDM', value=True)
+                        # # GPCRHMM predicted membrane proteins (true/false)
+                        # if 'GPCRHMM predicted membrane proteins' in classes:
+                        #     self.targets.set_value(index=ind, col='GPCRHMM predicted membrane proteins', value=True)
+                        # I now do this by collecting a full list of HPA's membrane protein/secreted protein prediction 
+                        # methods - it comes in useful when doing AB-ability later.
+                        for mpc in [i for i in classes if i in self.hpa_predicted_membrane_protein_subclasses]:
+                            self.targets.set_value(index=ind, col=mpc, value=True)
+                        for spc in [i for i in classes if i in self.hpa_predicted_secreted_protein_subclasses]:
+                            self.targets.set_value(index=ind, col=spc, value=True)
                         # # TM segments (number of segments, based on max class)
                         tm_segs = [i for i in classes if re.search("TM proteins predicted by MDM", i)]
                         if tm_segs:
@@ -1521,7 +1549,7 @@ class Downloader(QThread):
                         
                         # Is this a housekeeping gene? (I.e., is it expressed in all tissues?)
                         if data.get('proteinAtlas').get('entry').get('rnaExpression').get('rnaTissueCategory').get(
-                                    '#text') == "Expressed in all":
+                                '#text') == "Expressed in all":
                             self.targets.set_value(index=ind, col='Housekeeping gene', value=True)
                         
                         # We can also get a bit of information about assays and antibodies.
@@ -1822,7 +1850,7 @@ class Downloader(QThread):
                                 print("BEAST MODE")
                                 # sleep(1)
                                 do_this_query()
-
+                        
                         phenrows = do_this_query()
                         
                         # phenrows = template2.rows(A={"op": "LOOKUP", "value": row["ontologyTerm.identifier"]})
@@ -1903,7 +1931,7 @@ class Downloader(QThread):
     def get_pharos_data(self, ind, target, displayname):
         # Query Pharos -  an NCBI repository of drug target-related data. 
         try:
-            if target['Uniprot ID'] not in [None, np.nan]:
+            if target['Uniprot ID'] not in [None, np.nan, 'nan']:
                 self.emit_download_status(target, displayname, "Pharos")
                 self.targets.set_value(index=ind, col='Pharos query', value=target['Uniprot ID'])
                 pharos_data = self.download_pharos_drug_and_ligand_count(target['Uniprot ID'])
@@ -1985,7 +2013,7 @@ class Downloader(QThread):
     def get_disease_association_data(self, ind, target, displayname):
         # Use OpenTargets to get an absolute wealth of useful info. 
         try:
-            if target['GeneID'] not in [None, np.nan]:
+            if target['GeneID'] not in [None, np.nan, 'nan']:
                 print(1)
                 disease_found = False
                 self.emit_download_status(target, displayname, "OpenTargets")
@@ -1998,7 +2026,7 @@ class Downloader(QThread):
                         evidence_types = {}
                         for assoc in assocs_for_target:
                             # pprint(assoc)
-                            new_dis_row = {'series': target['series'], 
+                            new_dis_row = {'series': target['series'],
                                            'GeneID': target['GeneID'],
                                            'HGNC Name': target['HGNC Name'] if 'HGNC Name' in target else None,
                                            'Uniprot ID': target['Uniprot ID'] if 'Uniprot ID' in target else None,
@@ -2011,7 +2039,7 @@ class Downloader(QThread):
                                            'Association score': assoc.get('association_score').get('overall') or 0,
                                            "Genetic association": assoc.get("association_score").get('datatypes').get(
                                                'genetic_association') or 0}
-
+                            
                             if float(new_dis_row['Genetic association']) >= disease_association_score_threshold and \
                                     assoc['is_direct']:
                                 # self.disease_association_data = self.disease_association_data.append(new_dis_row,
@@ -2075,7 +2103,7 @@ class Downloader(QThread):
                                               'Max clinical phase': ev.get('drug').get('max_phase_for_all_diseases'). \
                                                                         get('label') or 0,
                                               'Drug ID': ev.get('drug').get('id') or 'Unnamed drug',
-                                              'Withdrawn': None, 
+                                              'Withdrawn': None,
                                               'Withdrawn reason': ev.get('drug').get('withdrawn_reason'),
                                               'Withdrawn country': ev.get('drug').get('withdrawn_country'),
                                               'Withdrawn year': ev.get('drug').get('withdrawn_year')
@@ -2085,7 +2113,7 @@ class Downloader(QThread):
                                 # Has this drug been withdrawn? Check the WITHDRAWN database.
                                 if new_ev_row.get('Drug name'):
                                     if str(new_ev_row['Drug name']).capitalize() in self.withdrawn_withdrawn[
-                                            'DRUG_NAME'].tolist():
+                                        'DRUG_NAME'].tolist():
                                         new_ev_row['Withdrawn'] = True
                                 # To prevent errors, we'll have to do some catches for missing values here.
                                 if float(new_ev_row['Association score']) >= disease_association_score_threshold:
@@ -2163,7 +2191,6 @@ class Downloader(QThread):
                 if literature_evidence and self.get_literature:
                     self.literature = pd.concat([self.literature, pd.DataFrame(literature_evidence)])
                 
-                
                 # Before actually committing disease associations to more permanent storage, we need a bit of clean-up 
                 # on them. Sort by association score and remove duplicates.
                 monogenic = monogenic.sort_values(by=['Genetic association'])
@@ -2171,7 +2198,7 @@ class Downloader(QThread):
                 for i, row in monogenic.iterrows():
                     self.monogenic_disease_association_data = self.monogenic_disease_association_data.append(
                         row, ignore_index=True)
-
+                
                 polygenic = polygenic.sort_values(by=['Genetic association'])
                 polygenic = polygenic.drop_duplicates(['HGNC Name', 'GeneID', 'Uniprot ID', 'Disease ID'])
                 for i, row in polygenic.iterrows():
@@ -2226,7 +2253,7 @@ class Downloader(QThread):
             assocs = self.get_associations(target)
         return assocs
     
-    def get_evidence(self, target):        
+    def get_evidence(self, target):
         # Make the other type of OpenTargets query. 
         # (This function exists for error-handling purposes).
         try:
@@ -2292,7 +2319,7 @@ class Downloader(QThread):
     def get_gwas_data(self, ind, target, displayname):
         # Look up gene in two different GWAS experiment libraries.
         try:
-            if target['HGNC Name'] not in [None, np.nan]:
+            if target['HGNC Name'] not in [None, np.nan, 'nan']:
                 # self.status.emit("Downloading data for target " + displayname + "... (GWAS)")
                 self.emit_download_status(target, displayname, "GWAS")
                 self.targets.set_value(index=ind, col='GWAS query', value=target['HGNC Name'])
@@ -2451,7 +2478,7 @@ class Downloader(QThread):
                             'BioGRID ID Interactor A',
                             'BioGRID ID Interactor B',
                             'Systematic Name Interactor A',
-                            'Systematic Name Interactor B',]
+                            'Systematic Name Interactor B', ]
                 for i in dropcols:
                     df = df.drop(i, axis=1)
                 # Now add back in the usual IDs, and we're almost there.
@@ -2786,7 +2813,7 @@ class Downloader(QThread):
             print(e)
             traceback.print_exc()
             exit()
-
+    
     def get_gene_name_for_uniprot_id(self, uniprot_id):
         # Use the lookup table first; should that fail, try querying genenames.
         try:
@@ -2868,9 +2895,9 @@ class Downloader(QThread):
         def has_insufficient_info():
             if not target['HGNC Name'] or not target['Uniprot ID']:
                 return True
-            # jaxlab = self.jackson_lab_data[self.jackson_lab_data['HGNC Name'] == target['HGNC Name']]
-            # if "No phenotypes found" in jaxlab['MGI Gene/Marker ID'].tolist():
-            #     return True
+                # jaxlab = self.jackson_lab_data[self.jackson_lab_data['HGNC Name'] == target['HGNC Name']]
+                # if "No phenotypes found" in jaxlab['MGI Gene/Marker ID'].tolist():
+                #     return True
         
         def boxed_warnings():
             drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
@@ -2912,6 +2939,7 @@ class Downloader(QThread):
             def contain(s, subs):
                 # Does string s contain any of substrings subs?)
                 return any(i in s for i in subs)
+            
             # Do any of the jaxlab phenotype descriptors for this target contain any of the substrings identified as 
             # pointing to severe phenoptyes we want to give warnings about?
             jaxlab = self.jackson_lab_data[self.jackson_lab_data['HGNC Name'] == target['HGNC Name']]
@@ -2930,7 +2958,8 @@ class Downloader(QThread):
         def single_gene_disorder():
             # Query the rare disease associations data for disease associations from OrphaNet (which are single-gene 
             # rare diseases)
-            df = self.monogenic_disease_association_data[self.monogenic_disease_association_data['HGNC Name'] == target['HGNC Name']]
+            df = self.monogenic_disease_association_data[
+                self.monogenic_disease_association_data['HGNC Name'] == target['HGNC Name']]
             if len(df.index):
                 return True
         
@@ -2938,21 +2967,21 @@ class Downloader(QThread):
             # If this target is tissue enriched, group enriched or tissue enhanced in any HPA tissue marked by the user 
             # as a high risk site for overexpression 
             if [i for i in hpa_all_tissues if
-                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_high_risk'])]:
+                target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_high_risk'])]:
                 return True
-
+        
         def hpa_enrichment_in_low_risk_tissues():
             # If this target is tissue enriched, group enriched or tissue enhanced in any HPA tissue marked by the user 
             # as a low risk site for overexpression 
             if [i for i in hpa_all_tissues if
-                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_low_risk'])]:
+                target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_low_risk'])]:
                 return True
-
+        
         def hpo_associations_in_high_risk_tissues():
             # If this target is a gene marked as being associated with abnormalities in any HPO tissue marked by the 
             # user as an unacceptable site for abnormalities, return a 1 point result here. 
             if [i for i in hpo_annotation_names if
-                    target[i] and i in list(self.disease_profile['hpo']['high_risk'])]:
+                target[i] and i in list(self.disease_profile['hpo']['high_risk'])]:
                 return True
         
         def has_phase4_drug():
@@ -3000,7 +3029,7 @@ class Downloader(QThread):
         if on_target_withdrawn_drug():
             return 5
         
-        if points >= 2: 
+        if points >= 2:
             return 4
         elif points > 0:
             return 3
@@ -3140,23 +3169,27 @@ class Downloader(QThread):
         
         def family_has_structure(gene_family_id):
             for f in self.split_gene_families(gene_family_id):
-                family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
-                if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)]['number of 3d structure'].any():
-                    return True
+                if self.gene_family_data[f].get('Approved Symbol'):  # All data outside of my control is just terrible
+                    family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
+                    if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)][
+                        'number of 3d structure'].any():
+                        return True
         
         def family_has_druggable_pocket(gene_family_id):
             for f in self.split_gene_families(gene_family_id):
                 family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
-                if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)]['number of 3d structure druggable'].any():
+                if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)][
+                    'number of 3d structure druggable'].any():
                     return True
         
         def family_has_ligand(gene_family_id):
             for f in self.split_gene_families(gene_family_id):
-                family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
-                for genename in family_genes:
-                    uid = self.get_uniprot_id_for_gene_name(genename)
-                    if has_ligand(uid):
-                        return True
+                if self.gene_family_data[f].get('Approved Symbol'):  # All data outside of my control is just terrible
+                    family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
+                    for genename in family_genes:
+                        uid = self.get_uniprot_id_for_gene_name(genename)
+                        if has_ligand(uid):
+                            return True
         
         def family_has_high_activity_ligand(gene_family_id):
             for f in self.split_gene_families(gene_family_id):
@@ -3169,7 +3202,7 @@ class Downloader(QThread):
         # Now we can stack them all up into our decision tree for this bucket. 
         name = target['HGNC Name']
         uniprot_id = target['Uniprot ID']
-        gene_family_id = target['Gene family ID'] 
+        gene_family_id = target['Gene family ID']
         if name and uniprot_id:
             if is_tclin_or_tchem(uniprot_id):
                 return 1
@@ -3283,11 +3316,16 @@ class Downloader(QThread):
         # This is a little more straightforward than other bucketing functions, since everything we're deciding on is
         # already present (able to be gathered into a single sheet, no less) and requires very little further number
         # crunching.
+        
         def secreted_strong_evidence():
             # This appears to be based on several different means of identifying tags for secreted proteins from the
             # HPA, so we can consider it a reasonably strong indicator. See
             # https://www.proteinatlas.org/humanproteome/secretome 
             if target['VerSeDa secretome membership']:
+                return True
+            # Also check if the HPA contains predictions of secreted proteins - if there is more than one method 
+            # predicting secretion, this can be considered stronger evidence.
+            if sum([target[i] for i in self.hpa_predicted_secreted_protein_subclasses if target[i]]) >= 2:
                 return True
         
         def ecm_strong_evidence():
@@ -3296,7 +3334,11 @@ class Downloader(QThread):
         
         def membrane_strong_evidence():
             if target['Surfaceome membership (human)'] and target[
-                    'Surfaceome membership confidence (human)'] == "1 - high confidence":
+                'Surfaceome membership confidence (human)'] == "1 - high confidence":
+                return True
+            # Also check if the HPA contains predictions of membrane proteins - if there is more than one method 
+            # predicting membrane location, this can be considered stronger evidence.
+            if sum([target[i] for i in self.hpa_predicted_membrane_protein_subclasses if target[i]]) >= 2:
                 return True
         
         def secreted_ecm_membrane_weak_evidence():
@@ -3306,8 +3348,9 @@ class Downloader(QThread):
                     target['Surfaceome membership (mouse)'] or \
                     target['Predicted membrane protein'] or \
                     target['Predicted secreted protein'] or \
-                    target['GPCRHMM predicted membrane proteins'] or \
-                    target['Membrane proteins predicted by MDM']:  # Add further conditions as data become available...
+                    [target[i] for i in self.hpa_predicted_membrane_protein_subclasses if target[i]] or \
+                    [target[i] for i in self.hpa_predicted_secreted_protein_subclasses if target[i]]:  
+                # Add further conditions as data become available...
                 return True
         
         def cytoplasm():
@@ -3360,12 +3403,12 @@ class Downloader(QThread):
         
         def enriched_in_high_risk_tissue():
             if [i for i in hpa_all_tissues if
-                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_high_risk'])]:
+                target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_high_risk'])]:
                 return True
         
         def enriched_in_low_risk_tissue():
             if [i for i in hpa_all_tissues if
-                    target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_low_risk'])]:
+                target["HPA " + i] and i in list(self.disease_profile['hpa']['off_target_low_risk'])]:
                 return True
         
         def not_enriched_in_any_tissue():
@@ -3374,7 +3417,7 @@ class Downloader(QThread):
         
         def enriched_in_target_tissue():
             if [i for i in hpa_all_tissues if
-                    target["HPA " + i] and i in list(self.disease_profile['hpa']['on_target'])]:
+                target["HPA " + i] and i in list(self.disease_profile['hpa']['on_target'])]:
                 return True
         
         if enriched_in_high_risk_tissue():
@@ -3982,7 +4025,7 @@ class DiseaseProfileSelectorDialog(QDialog):
             self.ui.pushButton_onTarget_to_OffTarget_lowRisk_hpa.clicked.connect(
                 lambda: self.move_between_lists(source_list=self.ui.listWidget_onTarget_hpa,
                                                 destination_list=self.ui.listWidget_offTarget_lowRisk_hpa))
-
+            
             self.ui.pushButton_offTarget_highRisk_to_offTarget_lowRisk_hpa.clicked.connect(
                 lambda: self.move_between_lists(source_list=self.ui.listWidget_offTarget_highRisk_hpa,
                                                 destination_list=self.ui.listWidget_offTarget_lowRisk_hpa))
@@ -4270,7 +4313,7 @@ class ReportGenerator:
                 report_html_file = gene_name + "_report.html"
                 pweave.weave("summary_report.md", doctype='md2html', informat='markdown', output=report_html_file)
                 
-                for f in [temp_gtex_file, temp_basic_info, temp_pharos, temp_barres_mouse, temp_barres_human, 
+                for f in [temp_gtex_file, temp_basic_info, temp_pharos, temp_barres_mouse, temp_barres_human,
                           temp_disease_assocs, temp_drugs, temp_druggability, temp_ab, temp_risk]:
                     os.remove(f)
                 
@@ -4399,7 +4442,7 @@ class MainWindow(QMainWindow):
         self.api_keys = self.read_api_keys()
         self.ui.actionSettings.triggered.connect(self.launch_settings_dialog)
         
-        self.downloaderThread = Downloader(api_keys=self.api_keys, 
+        self.downloaderThread = Downloader(api_keys=self.api_keys,
                                            literature=self.ui.checkBox_literature.isChecked(),
                                            ppi=self.ui.checkBox_ppi.isChecked())
         self.downloaderThread.progbar_update.connect(self.update_progbar)
