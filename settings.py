@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-#
 # Created by: PyQt5 UI code generator 5.5
 #
 # WARNING! All changes made in this file will be lost!
@@ -97,7 +96,7 @@ class Ui_SettingsDialog(object):
     def retranslateUi(self, SettingsDialog):
         _translate = QtCore.QCoreApplication.translate
         SettingsDialog.setWindowTitle(_translate("SettingsDialog", "Settings"))
-        self.groupBox_2.setTitle(_translate("SettingsDialog", "OpenTargets"))
+        self.groupBox_2.setTitle(_translate("SettingsDialog", "OpenTargets (optional!)"))
         self.label_2.setText(_translate("SettingsDialog", "App name (http://blog.opentargets.org/api-getting-started-1/)"))
         self.label_3.setText(_translate("SettingsDialog", "Secret"))
         self.groupBox.setTitle(_translate("SettingsDialog", "FDA"))

@@ -264,7 +264,7 @@ class Downloader(QThread):
         if not self.barreslab_mouse:
             self.status.emit("Reading Barres lab data (mouse)...")
             print("Reading Barres lab data (mouse)...")
-            self.barreslab_mouse = pd.read_excel("Data/barreslab_rnaseq (2).xlsx", sheetname=None)
+            self.barreslab_mouse = pd.read_excel("Data/barreslab_rnaseq (2).xlsx", sheet_name=None)
             self.bl_mouse_cell_types = self.barreslab_mouse['Raw Data'].columns.tolist()[2:]
             self.bl_mouse_scaler.fit(self.barreslab_mouse['Raw Data'][self.barreslab_mouse['Raw Data'].columns[2:]])
         
@@ -272,7 +272,7 @@ class Downloader(QThread):
             self.status.emit("Reading Barres lab data (human)...")
             print("Reading Barres lab data (human)...")
             self.barreslab_human = pd.read_excel("Data/BarresLab_TableS4-HumanMouseMasterFPKMList.xlsx",
-                                                 sheetname="Human data only")
+                                                 sheet_name="Human data only")
             self.bl_human_scaler.fit(self.barreslab_human.values[2:])
             # Column names on that need a bit of work:
             cols = []
@@ -282,7 +282,7 @@ class Downloader(QThread):
                     hed = i
                 cols.append(str(hed + ": " + j))
             self.barreslab_human.columns = cols
-            self.bl_human_cell_types = self.barreslab_human.columns.tolist()
+            self.bl_human_cell_types = list(self.barreslab_human.columns)
         
         # GTEx data
         try:
@@ -290,7 +290,8 @@ class Downloader(QThread):
                 self.status.emit("Reading GTEx data...")
                 print("Reading GTEx data...")
                 # self.gtexdata = pd.read_table("Data/GTEx_Analysis_v6p_RNA-seq_RNA-SeQCv1.1.8_gene_median_rpkm.gct")
-                self.gtexdata = pd.read_table("Data/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.txt")
+                self.gtexdata = pd.read_table("Data/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.txt",
+                                              low_memory=False)
                 self.gtex_scaler.fit(self.gtexdata[self.gtexdata.columns[2:]])
                 # GTEx data is organised by Ensembl ID, but it's got a version number on it. We're not interested in 
                 # that right now. Get rid of it so we can do direct string equality comparisons. They're way easier to 
@@ -314,10 +315,12 @@ class Downloader(QThread):
     def read_datasets(self):
         # A guide to bucketing (this just gets added to the output as a sheet)
         if not self.bucketing_guide:
+            print("Reading bucketing guide...")
             self.bucketing_guide = pd.read_excel("Data/bucket_guide.xlsx")
         
         # A fairly comprehensive basic ID lookup table, courtesy of GeneNames
         if not self.id_lookup_table:
+            print("Reading ID lookup table...")
             self.id_lookup_table = pd.read_table("Data/genenames_all_gene_ids_lookup_table.tsv",
                                                  converters={i: str for i in range(0, 100)})  # Read all cols as strings
             # Not bad, but that leaves us with empty strings, which we don't want. Replace them with NaN
@@ -325,45 +328,54 @@ class Downloader(QThread):
         
         # Subcellular location data
         if not self.locationdata:
+            print("Reading subcellular locations...")
             self.status.emit("Reading subcellular location data...")
             self.locationdata = pd.read_csv("Data/subcellular_location.csv")
         
         # GWAS catalog data
         if not self.gwas_catalog:
+            print("Reading GWAS catalog...")
             self.status.emit("Reading GWAS Catalog data...")
-            self.gwas_catalog = pd.read_table("Data/gwas_catalog_v1.0.1-associations_e88_r2017-04-24.tsv")
+            self.gwas_catalog = pd.read_table("Data/gwas_catalog_v1.0.1-associations_e88_r2017-04-24.tsv",
+                                              low_memory=False)
         
         # List of core fitness genes
         if not self.core_fitness_data:
+            print("Reading core fitness data...")
             self.status.emit("Reading core fitness genes data...")
             self.core_fitness_data = pd.read_csv("Data/core_fitness_genes.csv")
         
         # List of CRISPR-screened core fitness genes
         if not self.crispr_core_fitness_data:
+            print("Reading CRISPR screening core fitness data...")
             self.status.emit("Reading CRISPR-screened core fitness genes data...")
             self.crispr_core_fitness_data = pd.read_table("Data/Human_core_essential_gene_set_v2.txt",
                                                           names=["HGNC Name", "HGNC ID"])
         
         if not self.ogee_essential_gene_data:
+            print("Reading OGEE...")
             self.status.emit("Reading OGEE essential genes data...")
             self.ogee_essential_gene_data = pd.read_csv("Data/ogee_human_essential_genes.csv")
         
         # Surfaceome inclusion list
         if not self.surfaceome_inclusion:
+            print("Reading surfaceome data...")
             self.status.emit("Reading surfaceome inclusion list data...")
-            self.surfaceome_inclusion = pd.read_excel("Data/Surfaceome_inclusion_lists.xlsx", sheetname=None)
+            self.surfaceome_inclusion = pd.read_excel("Data/Surfaceome_inclusion_lists.xlsx", sheet_name=None)
         
         # Extracellular matrix components list
         if not self.ecm_components:
+            print("Reading extracellular matrix data...")
             self.status.emit("Reading extracellular matrix components list data...")
             self.ecm_components = pd.read_excel("Data/corematrisome_hs.xls")
         
         # canSAR data (I downloaded everything I could get into a single file, in lieu of them providing an API)
         if not self.cansar_data:
+            print("Reading CanSAR data...")
             self.status.emit("Reading canSAR data...")
             self.cansar_data = pd.read_csv("Data/canSAR_all_human_genes_2017-12-11.csv")
-            self.cansar_data.columns = [re.sub("_", " ", i) for i in self.cansar_data.columns.tolist()]
-            extra_cansar_cols = [i for i in self.cansar_data.columns.tolist() if
+            self.cansar_data.columns = [re.sub("_", " ", i) for i in list(self.cansar_data.columns)]
+            extra_cansar_cols = [i for i in list(self.cansar_data.columns) if
                                  i not in ['search term', 'uniprot accession', 'gene name', 'description', 'synonyms',
                                            'location', 'keywords', 'cansar_link']]
             self.cansarcols = self.cansarcols + extra_cansar_cols
@@ -374,24 +386,28 @@ class Downloader(QThread):
         # Read in disease phenotype-gene associations. These files don't actually need modifying from their original
         # format, so updating should be trivial. 
         if not self.HPO_genes_to_diseases:
+            print("Reading HPO data...")
             self.status.emit("Reading Human Protein Ontology data...")
             self.HPO_genes_to_diseases = pd.read_csv("Data/HPO_genes_to_diseases.txt", sep="\t", skiprows=1,
                                                      names=['EntrezID', 'HGNC Name', 'Disease'])
         
         if not self.HPO_diseases_to_genes:
+            print("Reading HPO data (other way)...")
             self.status.emit("Reading Human Protein Ontology data...")
             self.HPO_diseases_to_genes = pd.read_csv("Data/HPO_diseases_to_genes.txt", sep="\t",
                                                      skiprows=1, names=['Disease', 'EntrezID', 'HGNC Name'])
         
         # Read a list of tissues we've picked out as being likely toxicity indicators from the Human Protein Atlas.
         # We can now auto-populate some lists that will help us keep this organised as desired.
+        print("Reading toxicity data...")
         for fl in hpa_toxfiles:
             df = pd.read_csv(fl, index_col=0)
-            tissue, datatype = [re.sub('\+', ' ', i).capitalize() for i in re.split('[_\.]', basename(fl))[0:2]]
-            self.hpa_listclasses.append(datatype)
-            if not self.hpa_tox_lists.get(tissue):
-                self.hpa_tox_lists[tissue] = {}
-            self.hpa_tox_lists[tissue][datatype] = df
+            # dt = data type
+            tis, dt = [re.sub('\+', ' ', i).capitalize() for i in re.split('[_\.]', basename(fl))[0:2]]
+            self.hpa_listclasses.append(dt)
+            if not self.hpa_tox_lists.get(tis):
+                self.hpa_tox_lists[tis] = {}
+            self.hpa_tox_lists[tis][dt] = df
         self.hpa_listclasses = sorted(list(set(self.hpa_listclasses)))
         # Add tissue names to the Risk factors sheet 
         for i in self.hpa_tox_tissues:
@@ -405,6 +421,7 @@ class Downloader(QThread):
                 self.colnms.append(j)
         
         if not self.HPO_annotations:
+            print("Reading HPO annotations...")
             # This will involve a bit of somewhat dynamic programming. All good, as long as we do it carefully.
             for i in hpo_annotation_files:
                 j = os.path.basename(i)
@@ -418,6 +435,7 @@ class Downloader(QThread):
                     self.colnms.append(i)
         
         if not self.HPO_annotations_scores:
+            print("Reading HPO annotaions scores...")
             self.HPO_annotations_scores = pd.read_csv("Data/HPO_termname_lookup.csv")
         
         # Tag phenotypes with associated genes in the list of essential genes as being particularly serious.
@@ -428,6 +446,7 @@ class Downloader(QThread):
         
         # Get identity scores (and e-values later, if necessary) for all genes in the human proteome.
         # I generated these using blastp. The JSON files get made in blast_handler.py
+        print("Reading identity and e-value scores from all-vs-all BLASTp...")
         with open("Data/ident_matrix.json", 'r') as f:
             self.identity_scores = json.load(f)
         with open("Data/eval_matrix.json", 'r') as f:
@@ -436,24 +455,30 @@ class Downloader(QThread):
         # Get PDB lookup table - links PDB codes to UniProt IDs.
         # I made this file myself, but it's based on https://www.uniprot.org/docs/pdbtosp.txt
         if not self.pdb_to_uniprot:
+            print("Reading PDB data...")
             self.pdb_to_uniprot = pd.read_csv("Data/pdb_to_uniprot.csv")
         
         # Drug-gene interaction database file full of interactions
         # There are at least three of these I can go after. DGIdb is one. ChEMBL is another. DrugBank is a third, though
         # that will have to be accessed differently. 
         if not self.dgidb_interactions:
+            print("Reading DGIdb data...")
             self.dgidb_interactions = pd.read_table("Data/DGIdb_interactions.tsv")
         if not self.chembl_interactions:
+            print("Reading ChEMBL interactions data...")
             self.chembl_interactions = pd.read_csv("Data/chembl_drugtargets_named-18_13_46_02.csv",
                                                    encoding="ISO-8859-1")
         
         # IUPHAR gene-ligand interaction database
-        self.iuphar_gene_ligand_interactions = pd.read_csv("Data/IUPHAR_ligand-gene_interactions.csv")
+        print("Reading IUPHAR data...")
+        self.iuphar_gene_ligand_interactions = pd.read_csv("Data/IUPHAR_ligand-gene_interactions.csv",
+                                                           low_memory=False)
         self.iuphar_gene_ligand_interactions = self.iuphar_gene_ligand_interactions[
             self.iuphar_gene_ligand_interactions["target_species"] == "Human"]
         
         # Read these t3db things - toxicity database t3db.ca
         if not self.t3db_toxins:
+            print("Reading T3DB toxicology data...")
             self.status.emit("Reading T3DB toxicology data...")
             self.t3db_toxins = pd.read_json("Data/t3db_toxins.json")
         if not self.t3db_moas:
@@ -465,10 +490,12 @@ class Downloader(QThread):
             self.t3db_drug_moas = self.t3db_moas[self.t3db_moas['Toxin T3DB ID'].isin(drug_toxins['title'])]
         
         # VerSeDa secretome genes - filtered by query to SecretomeP >= 0.9
+        print("Reading VerSeDa data...")
         self.verseda_secretome = pd.read_csv("Data/VerSeDa_HSapiens_secretedProteins.csv")
         
         # Read a list of withdrawn drugs from the WITHDRAWN database
         if not self.withdrawn_withdrawn:
+            print("Reading WITHDRAWN database data...")
             self.withdrawn_withdrawn = pd.read_csv("Data/withdrawn_withdrawn_compounds.csv")
         
         # We can now get Jackson lab mouse phenotype data, but it's organised in a form that is incompatible with the 
@@ -518,7 +545,7 @@ class Downloader(QThread):
             self.mousemine = Service('www.mousemine.org/mousemine')
             # Set up a connection to BioMart too.
             self.status.emit("Connecting to BioMart...")
-            self.server = BiomartServer("http://uswest.ensembl.org/biomart")
+            self.server = BiomartServer("http://ensembl.org/biomart")
             # print("Checking BioMart connection...")
             # if server.is_alive:
             #     print("   Connected")
@@ -527,11 +554,13 @@ class Downloader(QThread):
             self.biomart_dataset = self.server.datasets['hsapiens_gene_ensembl']
             self.status.emit("Connecting to OpenTargets...")
             
-            if self.api_keys['OpenTargets_appName'] == "AppName" and self.api_keys['OpenTargets_secret'] == "Secret":
-                self.ot = OpenTargetsClient()
-            else:
-                self.ot = OpenTargetsClient(auth_app_name=self.api_keys['OpenTargets_appName'],
-                                            auth_secret=self.api_keys['OpenTargets_secret'])
+            # if not self.api_keys['OpenTargets_appName'] or len(str(self.api_keys['OpenTargets_appName'])) < 1:
+            #     self.ot = OpenTargetsClient()
+            # else:
+            #     self.ot = OpenTargetsClient(auth_app_name=self.api_keys['OpenTargets_appName'],
+            #                                 auth_secret=self.api_keys['OpenTargets_secret'])
+            # Looks like they've removed this API key stuff entirely!
+            self.ot = OpenTargetsClient()
             self.status.emit("Checking EBI DrugEBIlity status...")
             response = requests.get("https://www.ebi.ac.uk/chembl/drugebility")
             if response.status_code != 200:
@@ -794,7 +823,10 @@ class Downloader(QThread):
                                     'Subcellular location summary', 'Subcellular location verification',
                                     'Main subcellular locations', 'Additional subcellular locations', 'GOIDs',
                                     'Surfaceome membership (human)', 'Surfaceome membership confidence (human)',
-                                    'Surfaceome membership (mouse)', 'Surfaceome membership confidence (mouse)', ]
+                                    'Surfaceome membership (mouse)',
+                                    'Surfaceome membership confidence (mouse)', ] + \
+                                   self.hpa_predicted_secreted_protein_subclasses + \
+                                   self.hpa_predicted_membrane_protein_subclasses
         self.feasibilitycols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', "Assays", "Antibodies",
                                 # 'Affected pathway', 'Animal model',
                                 # 'Genetic association', 
@@ -1007,14 +1039,14 @@ class Downloader(QThread):
                 # ... but no HGNC Name, get Ensembl ID
                 ensembl_id = self.get_ensembl_id_for_gene_name(target['HGNC Name'])
                 if ensembl_id:
-                    self.targets.set_value(index=ind, col='GeneID', value=ensembl_id)
+                    self.targets.at[ind, 'GeneID'] = ensembl_id
                     target['GeneID'] = ensembl_id  # Make it available inside the loop too
                     print("\t-> " + ensembl_id)
             if pd.isnull(target['Uniprot ID']):
                 # ... but no Uniprot ID, get Uniprot ID
                 uniprot_id = self.get_uniprot_id_for_gene_name(target['HGNC Name'])
                 if uniprot_id:
-                    self.targets.set_value(index=ind, col='Uniprot ID', value=uniprot_id)
+                    self.targets.at[ind, 'Uniprot ID'] = uniprot_id
                     target['Uniprot ID'] = uniprot_id  # Make it available inside the loop too
                     print("\t-> " + uniprot_id)
         elif not pd.isnull(target['GeneID']):
@@ -1024,7 +1056,7 @@ class Downloader(QThread):
                 # ... but no name, get a name
                 gene_name = self.get_gene_name_for_ensembl_id(target['GeneID'])
                 if gene_name:
-                    self.targets.set_value(index=ind, col='HGNC Name', value=gene_name)
+                    self.targets.at[ind, 'HGNC Name'] = gene_name
                     target['HGNC Name'] = gene_name  # Make it available inside the loop too
                     print("\t-> " + gene_name)
                 else:
@@ -1033,7 +1065,7 @@ class Downloader(QThread):
                 # ... but no Uniprot ID, get Uniprot ID
                 uniprot_id = self.get_uniprot_id_for_ensembl_id(target['GeneID'])
                 if uniprot_id:
-                    self.targets.set_value(index=ind, col='Uniprot ID', value=uniprot_id)
+                    self.targets.at[ind, 'Uniprot ID'] = uniprot_id
                     target['Uniprot ID'] = uniprot_id  # Make it available inside the loop too
                     print("\t-> " + uniprot_id)
                 else:
@@ -1045,7 +1077,7 @@ class Downloader(QThread):
                 # ... but no name, get a name
                 gene_name = self.get_gene_name_for_uniprot_id(target['Uniprot ID'])
                 if gene_name:
-                    self.targets.set_value(index=ind, col='GeneID', value=gene_name)
+                    self.targets.at[ind, 'GeneID'] = gene_name
                     target['HGNC Name'] = gene_name  # Make it available inside the loop too
                     print("\t-> " + gene_name)
             if pd.isnull(target['GeneID']):
@@ -1057,7 +1089,7 @@ class Downloader(QThread):
                 if not pd.isnull(target['HGNC Name']):
                     ensembl_id = self.get_ensembl_id_for_gene_name(target['HGNC Name'])
                     if ensembl_id:
-                        self.targets.set_value(index=ind, col='GeneID', value=ensembl_id)
+                        self.targets.at[ind, 'GeneID'] = ensembl_id
                         target['GeneID'] = ensembl_id  # Make it available inside the loop too
                         print("\t-> " + ensembl_id)
         return target
@@ -1077,6 +1109,7 @@ class Downloader(QThread):
     def get_genenames_annotations(self, ind, target, displayname):
         # Get some annotations - family membership and the like - that's directly accessible via basic identifiers.
         try:
+            self.emit_download_status(target, displayname, "GeneNames annotations")
             # Now that I get all this stuff from a file rather than web queries, I can quite radically simplify this:
             df = None
             if target['HGNC Name'] not in [None, np.nan, 'nan']:
@@ -1109,117 +1142,12 @@ class Downloader(QThread):
                     value = df[gn_name].tolist()[0]
                     if pd.isnull(value):
                         value = None
-                    self.targets.set_value(index=ind, col=my_name, value=value)
+                    self.targets.at[ind, my_name] = value
                     target[my_name] = value
                     # A bit of extra stuff I nearly forgot about: gene family data. (I'll keep querying this for now).
                     if my_name == "Gene family ID" and value:
                         for gfid in self.split_gene_families(value):
                             self.get_protein_family_info(gfid)
-                            
-                            # 
-                            # url = None
-                            # if target['HGNC Name'] not in [None, np.nan, 'nan']:
-                            #     url = "http://rest.genenames.org/fetch/symbol/" + target['HGNC Name']
-                            # elif target['GeneID'] not in [None, np.nan, 'nan']:
-                            #     url = "http://rest.genenames.org/fetch/ensembl_gene_id/" + target['GeneID']
-                            # elif target['Uniprot ID'] not in [None, np.nan, 'nan']:
-                            #     url = "http://rest.genenames.org/fetch/uniprot_ids/" + target['Uniprot ID']
-                            #     print("url = " + url)
-                            # else:
-                            #     exit("Extremely incorrect input data found; should have been caught long before this!")
-                            # response = requests.get(url)
-                            # if response.status_code != 200:
-                            #     self.warnings.emit("GeneNames query failed with code " + str(response.status_code))
-                            #     if response.status_code == 500:
-                            #         sleep(10)
-                            #         annotations = self.get_genenames_annotations(ind, target, displayname)
-                            #         return annotations
-                            # else:
-                            #     data = xmltodict.parse(response.content)
-                            #     # pprint(data)
-                            #     if int(data.get('response').get('result').get('@numFound')) > 0:
-                            #         print("    approved name")
-                            #         if data.get('response').get('result').get('doc').get('str'):
-                            #             arr = data['response']['result']['doc']['str']
-                            #             if not isinstance(arr, list):
-                            #                 arr = [arr]
-                            #             approved_name = [i.get('#text') for i in arr if i['@name'] == "name"]
-                            #             if pd.isnull(target['Approved Name']) and approved_name:
-                            #                 self.targets.set_value(index=ind, col='Approved Name', value=approved_name[0])
-                            #                 target['Approved Name'] = approved_name
-                            #                 # print("    prev names")
-                            #                 # pprint(data['response']['result']['doc']['arr'])
-                            #             entrez_id = [i.get('#text') for i in arr if i['@name'] == "entrez_id"]
-                            #             if pd.isnull(target['Entrez ID']) and entrez_id:
-                            #                 self.targets.set_value(index=ind, col='Entrez ID', value=entrez_id[0])
-                            #                 target['Entrez ID'] = entrez_id
-                            #         if data.get('response').get('result').get('doc').get('arr'):
-                            #             arr = data['response']['result']['doc']['arr']
-                            #             if not isinstance(arr, list):
-                            #                 arr = [arr]
-                            #             prev_names = [i['str'] for i in arr if i['@name'] == "prev_name"]
-                            #             if prev_names:
-                            #                 if isinstance(prev_names, str):
-                            #                     # Sometimes this gives you strings when there's only one; we ALWAYS want a list
-                            #                     prev_names = [prev_names]
-                            #                 elif isinstance(prev_names[0], list):
-                            #                     # On the other hand, we may need to flatten a list of lists into a list. 
-                            #                     prev_names = list(itertools.chain(*prev_names))
-                            #             print("    prev symbols")
-                            #             prev_symbols = [i['str'] for i in arr if
-                            #                             i['@name'] == "prev_symbol"]
-                            #             if prev_symbols:
-                            #                 if isinstance(prev_symbols, str):
-                            #                     prev_symbols = [prev_symbols]
-                            #                 elif isinstance(prev_symbols[0], list):
-                            #                     prev_symbols = list(itertools.chain(*prev_symbols))
-                            #             # We can now fill missing values as appropriate, if replacements are available.
-                            #             if pd.isnull(target['Previous Name']) and prev_names + prev_symbols:
-                            #                 self.targets.set_value(index=ind, col='Previous Name',
-                            #                                        value=", ".join(uniq(prev_names + prev_symbols)))
-                            #             print("    alias symbols")
-                            #             alias_symbols = [i['str'] for i in arr if i['@name'] == "alias_symbol"]
-                            #             if alias_symbols:
-                            #                 if isinstance(alias_symbols, str):
-                            #                     alias_symbols = [alias_symbols]
-                            #                 elif isinstance(alias_symbols[0], list):
-                            #                     alias_symbols = list(itertools.chain(*alias_symbols))
-                            #             if pd.isnull(target['Synonyms']) and alias_symbols:
-                            #                 self.targets.set_value(index=ind, col='Synonyms', value=", ".join(uniq(alias_symbols)))
-                            #             # Can we get OMIM IDs (for disease associations) from that too?
-                            #             print("    omim")
-                            #             omim_id = [i['str'] for i in arr if i['@name'] == "omim_id"]
-                            #             if omim_id:
-                            #                 if isinstance(omim_id, str):
-                            #                     omim_id = [omim_id]
-                            #                 elif isinstance(omim_id[0], list):
-                            #                     omim_id = list(itertools.chain(*omim_id))
-                            #             if pd.isnull(target['Gene OMIM ID']) and omim_id:
-                            #                 self.targets.set_value(index=ind, col='Gene OMIM ID', value=omim_id)
-                            #                 # GeneNames data can also tell us if this gene is in the Endogenous Ligands family. 
-                            #                 # But that's not what we want - we want to know if the gene HAS an endogenous ligand, rather
-                            #                 # than whether it IS one. 
-                            #             print("    gene families")
-                            #             gene_families = flatten([i['str'] for i in arr if i['@name'] == "gene_family"])
-                            #             if gene_families:
-                            #                 target['Gene family'] = "|".join(gene_families)
-                            #                 self.targets.set_value(index=ind, col='Gene family',
-                            #                                        value=target['Gene family'])
-                            #             # if 'Endogenous ligands' in gene_families:
-                            #             #     self.targets.set_value(index=ind, col='Endogenous ligand', value=True)
-                            #             # Get gene family ID - we'll drill down a bit further with that shortly, then use it when 
-                            #             # doing some bucketing.
-                            #             gene_family_id = flatten([i['int'] for i in arr if i['@name'] == "gene_family_id"])
-                            #             # That can have multiple entries sometimes, it turns out. Plan appropriately.
-                            #             # print(gene_family_id)
-                            #             # pprint(data)
-                            #             if gene_family_id:
-                            #                 target['Gene family ID'] = "|".join(gene_family_id)
-                            #                 self.targets.set_value(index=ind, col='Gene family ID',
-                            #                                        value=target['Gene family ID'])
-                            #                 for fam_id in gene_family_id:
-                            #                     self.get_protein_family_info(fam_id)
-        
         except Exception as e:
             print("Exception in GeneNames function:")
             print(e)
@@ -1287,19 +1215,19 @@ class Downloader(QThread):
                 # Make these lists unique. We seem to get duplicates quite often.
                 flylist = [str(i) for i in uniq(biomrt['dmelanogaster_homolog_associated_gene_name'].dropna().tolist())]
                 if pd.isnull(target['HCOP Fly']) and flylist:
-                    self.targets.set_value(index=ind, col='HCOP Fly', value=", ".join(flylist))
+                    self.targets.at[ind, 'HCOP Fly'] = ", ".join(flylist)
                 ratlist = [str(i) for i in uniq(biomrt['rnorvegicus_homolog_associated_gene_name'].dropna().tolist())]
                 if pd.isnull(target['HCOP Rat']) and ratlist:
-                    self.targets.set_value(index=ind, col='HCOP Rat', value=", ".join(ratlist))
+                    self.targets.at[ind, 'HCOP Rat'] = ", ".join(ratlist)
                 wormlist = [str(i) for i in uniq(biomrt['celegans_homolog_associated_gene_name'].dropna().tolist())]
                 if pd.isnull(target['HCOP Worm']) and wormlist:
-                    self.targets.set_value(index=ind, col='HCOP Worm', value=", ".join(wormlist))
+                    self.targets.at[ind, 'HCOP Worm'] = ", ".join(wormlist)
                 fishlist = [str(i) for i in uniq(biomrt['drerio_homolog_associated_gene_name'].dropna().tolist())]
                 if pd.isnull(target['HCOP Zebrafish']) and fishlist:
-                    self.targets.set_value(index=ind, col='HCOP Zebrafish', value=", ".join(fishlist))
+                    self.targets.at[ind, 'HCOP Zebrafish'] = ", ".join(fishlist)
                 mouselist = [str(i) for i in uniq(biomrt['mmusculus_homolog_ensembl_gene'].dropna().tolist())]
                 if pd.isnull(target['Mouse Ensembl ID']) and mouselist:
-                    self.targets.set_value(index=ind, col='Mouse Ensembl ID', value=", ".join(mouselist))
+                    self.targets.at[ind, 'Mouse Ensembl ID'] = ", ".join(mouselist)
                     # Do this to prevent getting rate-limited by Ensembl when doing multiple queries sequentially
                     mouse_uniprot_list = []
                     for enid in mouselist:
@@ -1309,11 +1237,11 @@ class Downloader(QThread):
                         sleep(1)
                     # mouse_uniprot_list = list(
                     #     filter(None, [self.get_uniprot_id_for_ensembl_id(i, wait=True) for i in mouselist]))
-                    self.targets.set_value(index=ind, col='Mouse Uniprot ID', value=", ".join(mouse_uniprot_list))
+                    self.targets.at[ind, 'Mouse Uniprot ID'] = ", ".join(mouse_uniprot_list)
                     target['Mouse Uniprot ID'] = mouse_uniprot_list
                 mouselist = [str(i) for i in uniq(biomrt['mmusculus_homolog_associated_gene_name'].dropna().tolist())]
                 if pd.isnull(target['HCOP Mouse']) and mouselist:
-                    self.targets.set_value(index=ind, col='HCOP Mouse', value=", ".join(mouselist))
+                    self.targets.at[ind, 'HCOP Mouse'] = ", ".join(mouselist)
                     target['HCOP Mouse'] = ", ".join(mouselist)  # Because we'll actually be using this one later.
                 print("Mouse homolog names: " + ", ".join(mouselist))
             
@@ -1328,8 +1256,7 @@ class Downloader(QThread):
                 rna = pd.read_table(StringIO("\n".join([i.decode('utf-8') for i in response.iter_lines()])),
                                     names=attrs)
                 if pd.isnull(target['RNA class']) and rna['transcript_biotype'].tolist():
-                    self.targets.set_value(index=ind, col='RNA class',
-                                           value=", ".join(rna['transcript_biotype'].tolist()))
+                    self.targets.at[ind, 'RNA class'] = ", ".join(rna['transcript_biotype'].tolist())
             
             # GO terms?
             print("GO terms")
@@ -1359,8 +1286,7 @@ class Downloader(QThread):
                             data = xmltodict.parse(data['pre'])
                         if 'Entrezgene' in data:
                             if 'Entrezgene_summary' in data['Entrezgene']:
-                                self.targets.set_value(index=ind, col='Functional summary',
-                                                       value=data['Entrezgene']['Entrezgene_summary'])
+                                self.targets.at[ind, 'Functional summary'] = data['Entrezgene']['Entrezgene_summary']
                                 target['Functional summary'] = data['Entrezgene']['Entrezgene_summary']
         except Exception as e:
             print("Exception in NCBI annotations function:")
@@ -1384,7 +1310,7 @@ class Downloader(QThread):
                     # difficult for us. When there is only one result from a search, it just redirects us straight to 
                     # the relevant PubChem link. When this happens, the returned text is explicitly html, not xml.
                     if re.search("doctype html", response.text):
-                        self.targets.set_value(index=ind, col='Assays', value=1)
+                        self.targets.at[ind, 'Assays'] = 1
                     else:
                         data = xmltodict.parse(response.text)
                         if data:
@@ -1392,7 +1318,7 @@ class Downloader(QThread):
                                 n = len(data['pre'].split("\n\n"))
                                 if n == 20:
                                     n = "20+"
-                                self.targets.set_value(index=ind, col='Assays', value=n)
+                                self.targets.at[ind, 'Assays'] = n
         
         except Exception as e:
             print("Exception in NCBI assays function:")
@@ -1411,8 +1337,8 @@ class Downloader(QThread):
         elif target['Uniprot ID']:
             df = self.iuphar_gene_ligand_interactions[
                 self.iuphar_gene_ligand_interactions['target_uniprot'] == target['Uniprot ID']]
-        self.targets.set_value(index=ind, col='Ligand', value=len(df))
-        self.targets.set_value(index=ind, col='Endogenous ligand', value=len(df[df['endogenous'] == 't']))
+        self.targets.at[ind, 'Ligand'] = len(df)
+        self.targets.at[ind, 'Endogenous ligand'] = len(df[df['endogenous'] == 't'])
     
     def get_hpa_data(self, ind, target, displayname):
         try:
@@ -1421,7 +1347,7 @@ class Downloader(QThread):
                 # Get xml from the human protein atlas concerning this gene
                 url = "http://www.proteinatlas.org/" + target['GeneID'] + ".xml"
                 print("\t" + url)
-                self.targets.set_value(index=ind, col='HPA query', value=target['GeneID'])
+                self.targets.at[ind, 'HPA query'] = target['GeneID']
                 # This try/except is here because there can be cases where a gene isn't in the HPA. 
                 data = None
                 response = requests.get(url)
@@ -1441,16 +1367,16 @@ class Downloader(QThread):
                             classes = set(data['proteinAtlas']['entry']['proteinClasses']['proteinClass']['@name'])
                         # Top-level protein classes (list of values)
                         if classes.intersection(self.toplevel):
-                            self.targets.set_value(index=ind, col='Top level protein classes',
-                                                   value=", ".join(classes.intersection(self.toplevel)))
+                            self.targets.at[ind, 'Top level protein classes'] = ", ".join(
+                                classes.intersection(self.toplevel))
                         # Second-level protein classes (list of values)
                         if classes.intersection(self.secondlevel):
-                            self.targets.set_value(index=ind, col='Second level protein classes',
-                                                   value=", ".join(classes.intersection(self.secondlevel)))
+                            self.targets.at[ind, 'Second level protein classes'] = ", ".join(
+                                classes.intersection(self.secondlevel))
                         # Third-level protein classes (list of values)
                         if classes.intersection(self.thirdlevel):
-                            self.targets.set_value(index=ind, col='Third level protein classes',
-                                                   value=", ".join(classes.intersection(self.thirdlevel)))
+                            self.targets.at[ind, 'Third level protein classes'] = ", ".join(
+                                classes.intersection(self.thirdlevel))
                         # # Membrane proteins predicted by MDM (true/false)
                         # if 'Membrane proteins predicted by MDM' in classes:
                         #     self.targets.set_value(index=ind, col='Membrane proteins predicted by MDM', value=True)
@@ -1460,42 +1386,40 @@ class Downloader(QThread):
                         # I now do this by collecting a full list of HPA's membrane protein/secreted protein prediction 
                         # methods - it comes in useful when doing AB-ability later.
                         for mpc in [i for i in classes if i in self.hpa_predicted_membrane_protein_subclasses]:
-                            self.targets.set_value(index=ind, col=mpc, value=True)
+                            self.targets.at[ind, mpc] = True
                         for spc in [i for i in classes if i in self.hpa_predicted_secreted_protein_subclasses]:
-                            self.targets.set_value(index=ind, col=spc, value=True)
+                            self.targets.at[ind, spc] = True
                         # # TM segments (number of segments, based on max class)
                         tm_segs = [i for i in classes if re.search("TM proteins predicted by MDM", i)]
                         if tm_segs:
                             if '>9TM proteins predicted by MDM' in tm_segs:
-                                self.targets.set_value(index=ind, col='# TM segments', value=">9")
+                                self.targets.at[ind, '# TM segments'] = ">9"
                             else:
                                 # If the >9 class ident is not present, we want the first character from the first class 
                                 # ident when sorted in reverse order. That's the number of TM domains. 
-                                self.targets.set_value(index=ind, col='# TM segments',
-                                                       value=sorted(tm_segs, reverse=True)[0][0])
+                                self.targets.at[ind, '# TM segments'] = sorted(tm_segs, reverse=True)[0][0]
                         # Predicted secreted proteins (true/false)
                         if 'Predicted secreted proteins' in classes:
-                            self.targets.set_value(index=ind, col='Predicted secreted proteins', value=True)
+                            self.targets.at[ind, 'Predicted secreted proteins'] = True
                         # Mutational cancer driver genes (true/false)
                         if 'Mutational cancer driver genes' in classes:
-                            self.targets.set_value(index=ind, col='Mutational cancer driver genes', value=True)
+                            self.targets.at[ind, 'Mutational cancer driver genes'] = True
                         # COSMIC somatic mutations  in cancer genes (true/false)
                         if 'COSMIC somatic mutations in cancer genes' in classes:
-                            self.targets.set_value(index=ind, col='COSMIC somatic mutations in cancer genes',
-                                                   value=True)
+                            self.targets.at[ind, 'COSMIC somatic mutations in cancer genes'] = True
                         # Is protein - is in SwissProt (Yes + evidence level/No)
                         for i in data['proteinAtlas']['entry']['proteinEvidence']['evidence']:
                             if i['@source'] == "UniProt":
-                                self.targets.set_value(index=ind, col='Is protein', value="UniProt - " + i['@evidence'])
+                                self.targets.at[ind, 'Is protein'] = "UniProt - " + i['@evidence']
                         # Get GTEX expression data for this protein   
                         gtex = data['proteinAtlas']['entry']['rnaExpression']['data']
                         # List tissues present in this data:
                         # [i['tissue'] for i in gtex if 'tissue' in i]
                         for i in gtex:
                             if 'tissue' in i:
-                                tissue = i['tissue']
-                                if tissue in self.gtex_tissues:
-                                    self.targets.set_value(index=ind, col=tissue, value=i['level']['@tpm'])
+                                tis = i['tissue']
+                                if tis in self.gtex_tissues:
+                                    self.targets.at[ind, tis] = i['level']['@tpm']
                         # We can also get some data relating to localisation from the HPA.
                         # I'll need to do some stuff that's a bit tricky here, but it's perfectly OK as long as I'm 
                         # careful about it.
@@ -1504,13 +1428,13 @@ class Downloader(QThread):
                         # Easy stuff to start with:
                         # Is this a GPCR?
                         if 'G-protein coupled receptors' in classes:
-                            self.targets.set_value(index=ind, col='GPCR', value=True)
+                            self.targets.at[ind, 'GPCR'] = True
                         # Is this a predicted membrane protein (any method)?
                         if 'Predicted membrane proteins' in classes:
-                            self.targets.set_value(index=ind, col='Predicted membrane protein', value=True)
+                            self.targets.at[ind, 'Predicted membrane protein'] = True
                         # Is this a predicted secreted protein (any method)?
                         if 'Predicted secreted proteins' in classes:
-                            self.targets.set_value(index=ind, col='Predicted secreted protein', value=True)
+                            self.targets.at[ind, 'Predicted secreted protein'] = True
                         
                         # Is there any further localisation data available to us?
                         # GO term IDs are available here. Strip them out and hold on to them; we might use them later. 
@@ -1533,15 +1457,11 @@ class Downloader(QThread):
                             else:
                                 loc_main.append(cell_localisation_data['data']['location']['#text'])
                                 goids.append(cell_localisation_data['data']['location']['@GOId'])
-                            self.targets.set_value(index=ind, col='Subcellular location summary',
-                                                   value=loc_summary)
-                            self.targets.set_value(index=ind, col='Subcellular location verification',
-                                                   value=loc_verification)
-                            self.targets.set_value(index=ind, col='Main subcellular locations',
-                                                   value=", ".join(loc_main))
-                            self.targets.set_value(index=ind, col='Additional subcellular locations',
-                                                   value=", ".join(loc_additional))
-                            self.targets.set_value(index=ind, col='GOIDs', value=", ".join(goids))
+                            self.targets.at[ind, 'Subcellular location summary'] = loc_summary
+                            self.targets.at[ind, 'Subcellular location verification'] = loc_verification
+                            self.targets.at[ind, 'Main subcellular locations'] = ", ".join(loc_main)
+                            self.targets.at[ind, 'Additional subcellular locations'] = ", ".join(loc_additional)
+                            self.targets.at[ind, 'GOIDs'] = ", ".join(goids)
                             # These may be useful later on; keep them handy.
                             target['Main subcellular locations'] = loc_main
                             target['Additional subcellular locations'] = loc_additional
@@ -1550,12 +1470,12 @@ class Downloader(QThread):
                         # Is this a housekeeping gene? (I.e., is it expressed in all tissues?)
                         if data.get('proteinAtlas').get('entry').get('rnaExpression').get('rnaTissueCategory').get(
                                 '#text') == "Expressed in all":
-                            self.targets.set_value(index=ind, col='Housekeeping gene', value=True)
-                        
-                        # We can also get a bit of information about assays and antibodies.
-                        # This looks handy, but I don't see how to use it yet. 
-                        if 'antibody' in data['proteinAtlas']['entry']:
-                            assay_availability = data['proteinAtlas']['entry']['antibody']
+                            self.targets.at[ind, 'Housekeeping gene'] = True
+                            
+                            # We can also get a bit of information about assays and antibodies.
+                            # This looks handy, but I don't see how to use it yet. 
+                            # if 'antibody' in data['proteinAtlas']['entry']:
+                            #     assay_availability = data['proteinAtlas']['entry']['antibody']
         except Exception as e:
             print("Exception in HPA function:")
             print(e)
@@ -1568,11 +1488,11 @@ class Downloader(QThread):
         if target['GeneID']:
             # self.status.emit("Downloading data for target " + displayname + "... (GTEX)")
             self.emit_download_status(target, displayname, "GTEX")
-            self.targets.set_value(index=ind, col='GTEX query', value=target['GeneID'])
+            self.targets.at[ind, 'GTEX query'] = target['GeneID']
             if target['GeneID'] in self.gtexdata['Ensembl ID'].tolist():
                 gtex_hit = self.gtexdata.loc[self.gtexdata['Ensembl ID'] == target['GeneID']]
                 for col in self.gtexdata_tissue_types:
-                    self.targets.set_value(index=ind, col=col, value=gtex_hit[col].values[0])
+                    self.targets.at[ind, col] = gtex_hit[col].values[0]
     
     def get_location_data(self, ind, target, displayname):
         # Subcellular location, that is.
@@ -1584,17 +1504,15 @@ class Downloader(QThread):
                 mtch = 'Gene name'
             # self.status.emit("Downloading data for target " + displayname + "... (Subcellular localisation)")
             self.emit_download_status(target, displayname, "Subcellular localisation")
-            self.targets.set_value(index=ind, col='Location data query', value=target[srch])
+            self.targets.at[ind, 'Location data query'] = target[srch]
             if target[srch] in self.locationdata['Gene name'].unique():
                 loc_conf = self.locationdata.loc[self.locationdata[mtch] == target[srch]]['Reliability'].values[0]
                 location = self.locationdata.loc[self.locationdata[mtch] == target[srch]][loc_conf].values[0]
-                self.targets.set_value(index=ind,
-                                       col='Main location',
-                                       value=str(location) + " (" + str(loc_conf) + ")")
+                self.targets.at[ind, 'Main location'] = str(location) + " (" + str(loc_conf) + ")"
     
     def get_druggability_data(self, ind, target, displayname):
         self.emit_download_status(target, displayname, "DrugEBIlity")
-        self.targets.set_value(index=ind, col='DrugEBIlity query', value=target['Uniprot ID'])
+        self.targets.at[ind, 'DrugEBIlity query'] = target['Uniprot ID']
         # target_uniprot_ids = reviewed[reviewed['Gene name'] == name]['Entry'] 
         self.successful_requests = []
         # Remember, we may get more than one of these per gene in the future...
@@ -1605,7 +1523,7 @@ class Downloader(QThread):
             drugebility = self.query_drugebility(tuid)
             if drugebility:
                 for field in drugebility:
-                    self.targets.set_value(index=ind, col=field, value=drugebility[field])
+                    self.targets.at[ind, field] = drugebility[field]
     
     def query_drugebility(self, tuid):  # tuid = target uniprot id
         if self.drugebility_data_for_uniprot_ids.get(tuid):
@@ -1685,7 +1603,7 @@ class Downloader(QThread):
                 # I set those columns up when I read in data. 
                 if len(cansar) > 0:
                     for col in [i for i in self.cansarcols if i not in ['series', 'HGNC Name', 'GeneID']]:
-                        self.targets.set_value(index=ind, col=col, value=cansar[col].values[0])
+                        self.targets.at[ind, col] = cansar[col].values[0]
         except Exception as e:
             print("Exception in canSAR function:")
             print(e)
@@ -1696,44 +1614,44 @@ class Downloader(QThread):
         # Simple - check if a gene falls into any of these lists of core/essential genes. 
         if target['HGNC Name']:
             self.emit_download_status(target, displayname, "Core fitness genes")
-            self.targets.set_value(index=ind, col='Core fitness query', value=target['HGNC Name'])
+            self.targets.at[ind, 'Core fitness query'] = target['HGNC Name']
             print("\tcore fitness")
             if target['HGNC Name'] in self.core_fitness_data['HGNC Name'].tolist():
-                self.targets.set_value(index=ind, col='Core fitness gene', value=True)
+                self.targets.at[ind, 'Core fitness gene'] = True
             print("\tCRISPR-screened core fitness")
             if target['HGNC Name'] in self.crispr_core_fitness_data['HGNC Name'].tolist():
-                self.targets.set_value(index=ind, col='CRISPR-screened core fitness gene', value=True)
+                self.targets.at[ind, 'CRISPR-screened core fitness gene'] = True
             
             if target['HGNC Name'] in self.ogee_essential_gene_data['symbols'].tolist():
                 val = self.ogee_essential_gene_data[self.ogee_essential_gene_data['symbols'] == target['HGNC Name']][
                     'essentiality consensus'].values[0]
-                self.targets.set_value(index=ind, col='OGEE human essential gene', value=val)
+                self.targets.at[ind, 'OGEE human essential gene'] = val
             elif target['GeneID']:
                 if target['GeneID'] in self.ogee_essential_gene_data['locus'].tolist():
                     val = self.ogee_essential_gene_data[self.ogee_essential_gene_data['locus'] == target['GeneID']][
                         'essentiality consensus'].values[0]
-                    self.targets.set_value(index=ind, col='OGEE human essential gene', value=val)
+                    self.targets.at[ind, 'OGEE human essential gene'] = val
         elif target['GeneID']:
             if target['GeneID'] in self.ogee_essential_gene_data['locus'].tolist():
                 val = self.ogee_essential_gene_data[self.ogee_essential_gene_data['locus'] == target['GeneID']][
                     'essentiality consensus'].values[0]
-                self.targets.set_value(index=ind, col='OGEE human essential gene', value=val)
+                self.targets.at[ind, 'OGEE human essential gene'] = val
     
     def get_hpa_enrichment(self, ind, target, displayname):
         try:
             if target['HGNC Name']:
                 print("hpa enrichment")
                 self.emit_download_status(target, displayname, "HPA Enrichment")
-                for tissue in hpa_all_tissues:
-                    print("\t" + tissue)
+                for t in hpa_all_tissues:
+                    print("\t" + t)
                     outcomes = []
                     for enrichment in self.hpa_listclasses:
-                        if target['HGNC Name'] in self.hpa_tox_lists[tissue][enrichment]['Gene'].tolist():
+                        if target['HGNC Name'] in self.hpa_tox_lists[t][enrichment]['Gene'].tolist():
                             print("\t\t" + enrichment + " (length " + str(
-                                len(self.hpa_tox_lists[tissue][enrichment]['Gene'].tolist())) + ")")
+                                len(self.hpa_tox_lists[t][enrichment]['Gene'].tolist())) + ")")
                             outcomes.append(enrichment)
                     if outcomes:
-                        self.targets.set_value(index=ind, col="HPA " + tissue, value=", ".join(outcomes))
+                        self.targets.at[ind, "HPA " + t] = ", ".join(outcomes)
         except Exception as e:
             print("Exception in HPA enrichment function:")
             print(e)
@@ -1751,10 +1669,10 @@ class Downloader(QThread):
                 for i in hpo_annotation_names:
                     df = self.HPO_annotations[i]
                     if list(set(diseases['Disease'].tolist()).intersection(df['Disease id'])):
-                        self.targets.set_value(index=ind, col=i, value=True)
+                        self.targets.at[ind, i] = True
                         score += self.HPO_annotations_scores[self.HPO_annotations_scores['Term name'] == i][
                             'Withdrawn drug count'].values[0]
-                self.targets.set_value(index=ind, col='Phenotype risk score', value=score)
+                self.targets.at[ind, 'Phenotype risk score'] = score
                 # We have another column to add here as well. Specifically, we want to get the ratio of withdrawn drugs
                 # to accepted drugs.
                 drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
@@ -1762,7 +1680,7 @@ class Downloader(QThread):
                 ratio = 0
                 if len(drugs):  # Avoid division by 0
                     ratio = float(len(withdrawn_drugs)) / float(len(drugs))
-                self.targets.set_value(index=ind, col='Withdrawn drug ratio', value=ratio)
+                self.targets.at[ind, 'Withdrawn drug ratio'] = ratio
                 # This is a similar, but simpler, check. Cross-reference against a list of most strongly-associated 
                 # genes for the most tox-prone tissues from the HPA.
                 # for tissue in self.hpa_tox_tissues:
@@ -1785,19 +1703,19 @@ class Downloader(QThread):
             self.emit_download_status(target, displayname, "Extracellular matrix genes")
             print("\textracellular matrix")
             if target['HGNC Name'] in self.ecm_components['Gene Symbol'].tolist():
-                self.targets.set_value(index=ind, col='Extracellular matrix component', value=True)
+                self.targets.at[ind, 'Extracellular matrix component'] = True
     
     def get_verseda_secretome_data(self, ind, target, displayname):
         if target['GeneID']:
             self.emit_download_status(target, displayname, "VerSeDa secretome genes")
             if target['GeneID'] in self.verseda_secretome['Gene'].tolist():
                 print("\tsecreted")
-                self.targets.set_value(index=ind, col='VerSeDa secretome membership', value=True)
+                self.targets.at[ind, 'VerSeDa secretome membership'] = True
         elif target['Uniprot ID']:
             self.emit_download_status(target, displayname, "VerSeDa secretome genes")
             if target['Uniprot ID'] in self.verseda_secretome['Uniprot'].tolist():
                 print("\tsecreted")
-                self.targets.set_value(index=ind, col='VerSeDa secretome membership', value=True)
+                self.targets.at[ind, 'VerSeDa secretome membership'] = True
     
     def get_jackson_lab_data(self, ind, target, displayname):
         # Query MGI, the Jackson Lab's remarkably comprehensive database system.
@@ -1805,7 +1723,7 @@ class Downloader(QThread):
         try:
             if target['HCOP Mouse']:
                 print("Jaxlab query: " + target['HCOP Mouse'])
-                self.targets.set_value(index=ind, col='MGI query', value=target['HGNC Name'])
+                self.targets.at[ind, 'MGI query'] = target['HGNC Name']
                 self.emit_download_status(target, displayname, "Jackson lab/MGI")
                 template = self.mousemine.get_template('_Feature_Phenotype')
                 template2 = self.mousemine.get_template('Term_Ancestors')  # We'll use this later
@@ -1815,7 +1733,7 @@ class Downloader(QThread):
                 buffer = pd.DataFrame(columns=self.jacksonlabcols)
                 for row in rows:
                     # row["subject.symbol"] is the mouse gene symbol. Record it - it's useful.
-                    self.targets.set_value(index=ind, col='MGI Symbol', value=row["subject.symbol"])
+                    self.targets.at[ind, 'MGI Symbol'] = row["subject.symbol"]
                     target['MGI Symbol'] = row["subject.symbol"]
                     new_mouse_row = {'series': target['series'],
                                      'GeneID': target['GeneID'],
@@ -1898,7 +1816,7 @@ class Downloader(QThread):
     def get_barres_lab_data(self, ind, target, displayname):
         try:
             if target['HGNC Name']:
-                self.targets.set_value(index=ind, col='Barres lab human query', value=target['HGNC Name'])
+                self.targets.at[ind, 'Barres lab human query'] = target['HGNC Name']
                 # self.status.emit("Downloading data for target " + displayname + "... (Barres lab human)")
                 self.emit_download_status(target, displayname, "Barres lab human")
                 if target['HGNC Name'] in self.barreslab_human.index:
@@ -1907,11 +1825,11 @@ class Downloader(QThread):
                             # Found a matching column; now find matching genes. 
                             # This is cunning; we look for rows in the Barres lab data with a matching gene name. 
                             pt = self.barreslab_human.ix[target['HGNC Name']][col]
-                            self.targets.set_value(index=ind, col=col, value=pt)
+                            self.targets.at[ind, col] = pt
             
             if not pd.isnull(target['HCOP Mouse']):
                 # self.targets.set_value(index=ind, col='Barres lab mouse query', value=target['MGI Symbol'])
-                self.targets.set_value(index=ind, col='Barres lab mouse query', value=target['HCOP Mouse'])
+                self.targets.at[ind, 'Barres lab mouse query'] = target['HCOP Mouse']
                 # self.status.emit("Downloading data for target " + displayname + "... (Barres lab mouse)")
                 self.emit_download_status(target, displayname, "Barres lab mouse")
                 if target['HCOP Mouse'] in self.barreslab_mouse['Raw Data']['Gene symbol'].tolist():
@@ -1921,7 +1839,7 @@ class Downloader(QThread):
                             # This is cunning; we look for rows in the Barres lab data with a matching gene name. 
                             pt = self.barreslab_mouse['Raw Data'][self.barreslab_mouse['Raw Data']['Gene symbol']
                                                                   == target['HCOP Mouse']][col].values[0]
-                            self.targets.set_value(index=ind, col=col, value=pt)
+                            self.targets.at[ind, col] = pt
         except Exception as e:
             print("Exception in Barres lab function:")
             print(e)
@@ -1933,11 +1851,11 @@ class Downloader(QThread):
         try:
             if target['Uniprot ID'] not in [None, np.nan, 'nan']:
                 self.emit_download_status(target, displayname, "Pharos")
-                self.targets.set_value(index=ind, col='Pharos query', value=target['Uniprot ID'])
+                self.targets.at[ind, 'Pharos query'] = target['Uniprot ID']
                 pharos_data = self.download_pharos_drug_and_ligand_count(target['Uniprot ID'])
                 if pharos_data:
                     for k in pharos_data:
-                        self.targets.set_value(index=ind, col=k, value=pharos_data[k])
+                        self.targets.at[ind, k] = pharos_data[k]
         except Exception as e:
             print("Exception in Pharos function:")
             print(e)
@@ -2017,7 +1935,7 @@ class Downloader(QThread):
                 print(1)
                 disease_found = False
                 self.emit_download_status(target, displayname, "OpenTargets")
-                self.targets.set_value(index=ind, col='OpenTargets query', value=target['GeneID'])
+                self.targets.at[ind, 'OpenTargets query'] = target['GeneID']
                 assocs_for_target = self.get_associations(target)
                 monogenic = pd.DataFrame(columns=self.diseasecols)
                 polygenic = pd.DataFrame(columns=self.diseasecols)
@@ -2033,8 +1951,8 @@ class Downloader(QThread):
                                            'Approved Name': target[
                                                'Approved Name'] if 'Approved Name' in target else None,
                                            'OpenTargets query': target['GeneID'], 'Source': "OpenTargets",
-                                           'Disease name': assoc.get('disease').get('efo_info').get('label') or \
-                                                           'Unnamed disease',
+                                           'Disease name': assoc.get('disease').get('efo_info').get(
+                                               'label') or 'Unnamed disease',
                                            'Disease ID': assoc.get('disease').get('id') or 'Unknown',
                                            'Association score': assoc.get('association_score').get('overall') or 0,
                                            "Genetic association": assoc.get("association_score").get('datatypes').get(
@@ -2059,9 +1977,7 @@ class Downloader(QThread):
                                                   assoc['evidence_count']['datatypes']}
                         self.opentargets_datatypes[target['GeneID']] = evidence_types
                         for i in evidence_types:
-                            self.targets.set_value(index=ind,
-                                                   col=re.sub("_", " ", i).capitalize(),
-                                                   value=evidence_types[i])
+                            self.targets.at[ind, re.sub("_", " ", i).capitalize()] = evidence_types[i]
                     except Exception as e:
                         print("Error in disease association data:")
                         print(e)
@@ -2123,13 +2039,12 @@ class Downloader(QThread):
                                     # Set these too - they appear in the SM Druggability sheet.
                                     # It's the same info, but in a potentially more convenient arrangement.
                                     if new_ev_row['Withdrawn']:
-                                        self.targets.set_value(index=ind, col='Has withdrawn drug', value=True)
+                                        self.targets.at[ind, 'Has withdrawn drug'] = True
                                         druglist = []
                                         if target['Withdrawn drug list']:
                                             druglist = target['Withdrawn drug list'].split(", ")
                                         druglist.append(new_ev_row['Drug name'])
-                                        self.targets.set_value(index=ind, col='Withdrawn drug list',
-                                                               value=", ".join(druglist))
+                                        self.targets.at[ind, 'Withdrawn drug list'] = ", ".join(druglist)
                             except Exception as e:
                                 print("Error in disease association data:")
                                 print(e)
@@ -2184,9 +2099,9 @@ class Downloader(QThread):
                 
                 if drug2clin_evidence:
                     self.clinical_trial_data[target['GeneID']] = drug2clin_evidence
-                    for datatype in drug2clin_evidence:
-                        colname = re.sub("_", " ", datatype).capitalize()
-                        self.targets.set_value(index=ind, col=colname, value=drug2clin_evidence[datatype])
+                    for dt in drug2clin_evidence:  # dt = data type
+                        colname = re.sub("_", " ", dt).capitalize()
+                        self.targets.at[ind, colname] = drug2clin_evidence[dt]
                 
                 if literature_evidence and self.get_literature:
                     self.literature = pd.concat([self.literature, pd.DataFrame(literature_evidence)])
@@ -2322,7 +2237,7 @@ class Downloader(QThread):
             if target['HGNC Name'] not in [None, np.nan, 'nan']:
                 # self.status.emit("Downloading data for target " + displayname + "... (GWAS)")
                 self.emit_download_status(target, displayname, "GWAS")
-                self.targets.set_value(index=ind, col='GWAS query', value=target['HGNC Name'])
+                self.targets.at[ind, 'GWAS query'] = target['HGNC Name']
                 gwas_count = 0
                 # url = "http://www.gwascentral.org/studies?q=" + target['HGNC Name'] + "&t=6&format=json"
                 # print(url)
@@ -2389,20 +2304,20 @@ class Downloader(QThread):
             # (The space in "Protein " is intentional; that's what's in the header)
             # If so, what level of confidence are we looking at?
             if target['Uniprot ID'] in self.surfaceome_inclusion["Table A (human)"]['Protein '].values:
-                self.targets.set_value(index=ind, col='Surfaceome membership (human)', value=True)
+                self.targets.at[ind, 'Surfaceome membership (human)'] = True
                 # Take subset of data matching uniprot ID, get first confidence value in list (they're all the same)
                 confidence = self.surfaceome_inclusion["Table A (human)"][
                     self.surfaceome_inclusion["Table A (human)"]['Protein '] == target['Uniprot ID']][
                     'CSPA category'].values.tolist()[0]
-                self.targets.set_value(index=ind, col='Surfaceome membership confidence (human)', value=confidence)
+                self.targets.at[ind, 'Surfaceome membership confidence (human)'] = confidence
             if target['Mouse Uniprot ID']:
                 if any(x in self.surfaceome_inclusion["Table B (mouse)"]['Protein '].values
                        for x in target['Mouse Uniprot ID']):
-                    self.targets.set_value(index=ind, col='Surfaceome membership (mouse)', value=True)
+                    self.targets.at[ind, 'Surfaceome membership (mouse)'] = True
                     confidence = self.surfaceome_inclusion["Table B (mouse)"][
                         self.surfaceome_inclusion["Table B (mouse)"]['Protein '].isin(target['Mouse Uniprot ID'])][
                         'CSPA category'].values.tolist()[0]
-                    self.targets.set_value(index=ind, col='Surfaceome membership confidence (mouse)', value=confidence)
+                    self.targets.at[ind, 'Surfaceome membership confidence (mouse)'] = confidence
         except Exception as e:
             print("Exception in AB-ability function:")
             print(e)
@@ -2432,7 +2347,7 @@ class Downloader(QThread):
                         df[col] = target[col]
                 # Swap those IDs to be at the front
                 df = df[df.columns.tolist()[-4:] + df.columns.tolist()[:-4]]
-                self.pdb_data = pd.concat([self.pdb_data, df], ignore_index=True)
+                self.pdb_data = pd.concat([self.pdb_data, df], ignore_index=True, sort=False)
                 # Got to force these columns to stay in order
                 self.pdb_data = self.pdb_data[idcols + [i for i in self.pdb_data.columns.tolist() if i not in idcols]]
         except Exception as e:
@@ -2516,7 +2431,7 @@ class Downloader(QThread):
                         df[col] = None
                 # Swap those IDs to be at the front
                 df = df[df.columns.tolist()[-3:] + df.columns.tolist()[:-3]]
-                self.drug_tox_data = pd.concat([self.drug_tox_data, df], ignore_index=True)
+                self.drug_tox_data = pd.concat([self.drug_tox_data, df], ignore_index=True, sort=False)
                 # Got to force these columns to stay in order
                 self.drug_tox_data = self.drug_tox_data[idcols + [i for i in df.columns.tolist() if i not in idcols]]
         except Exception as e:
@@ -2630,13 +2545,17 @@ class Downloader(QThread):
         try:
             df = self.id_lookup_table[self.id_lookup_table['Approved Symbol'] == gene_name]
             if len(df):
-                return str(df['Ensembl Gene ID'].tolist()[0])
+                ensembl_id = str(df['Ensembl Gene ID'].tolist()[0]).strip()
+                # There may be cases where a record exists but no actual value is supplied, or the value is incorrect in 
+                # some way. Check for it.
+                if re.match("ENSG[0-9]{11}", ensembl_id):
+                    return ensembl_id
         except Exception as e:
             print("Exception in HGNC Name -> Ensembl ID function:")
             print(e)
             traceback.print_exc()
             exit()
-        
+        # Should that fail, go and look it up from Ensembl's servers
         try:
             url = "http://rest.genenames.org/fetch/symbol/" + gene_name
             print("Looking up ensembl ID for gene name " + gene_name)
@@ -2685,13 +2604,17 @@ class Downloader(QThread):
         try:
             df = self.id_lookup_table[self.id_lookup_table['Approved Symbol'] == gene_name]
             if len(df):
-                return str(df['UniProt ID(supplied by UniProt)'].tolist()[0])
+                uniprot_id = str(df['UniProt ID(supplied by UniProt)'].tolist()[0]).strip()
+                # There may be cases where a record exists but no actual value is supplied, or the value is incorrect in 
+                # some way. Check for it.
+                if re.match("[A-Z0-9]+", uniprot_id):
+                    return uniprot_id
         except Exception as e:
             print("Exception in HGNC Name -> UniProt ID function:")
             print(e)
             traceback.print_exc()
             exit()
-        
+        # Should that fail, go and look it up from UniProt's servers
         try:
             url = "http://www.uniprot.org/uniprot/?query=gene:" + gene_name + "+AND+organism:" + \
                   self.organism + "&sort=score&format=tab"
@@ -2728,12 +2651,17 @@ class Downloader(QThread):
         try:
             df = self.id_lookup_table[self.id_lookup_table['Ensembl Gene ID'] == ensembl_id]
             if len(df):
-                return str(df['Approved Symbol'].tolist()[0])
+                gene_name = str(df['Approved Symbol'].tolist()[0]).strip()
+                # There may be cases where a record exists but no actual value is supplied, or the value is incorrect in 
+                # some way. Check for it.
+                if re.match("[a-zA-Z0-9]+", gene_name):
+                    return gene_name
         except Exception as e:
             print("Exception in Ensembl ID -> HGNC name function:")
             print(e)
             traceback.print_exc()
             exit()
+        # Should that fail, go and look it up from Ensembl's servers
         try:
             url = "http://rest.ensembl.org/xrefs/id/" + ensembl_id + "?content-type=application/json"
             print("Looking up gene name for ensembl ID " + ensembl_id)
@@ -2766,13 +2694,17 @@ class Downloader(QThread):
         try:
             df = self.id_lookup_table[self.id_lookup_table['Ensembl Gene ID'] == ensembl_id]
             if len(df):
-                return str(df['UniProt ID(supplied by UniProt)'].tolist()[0])
+                uniprot_id = str(df['UniProt ID(supplied by UniProt)'].tolist()[0]).strip()
+                # There may be cases where a record exists but no actual value is supplied, or the value is incorrect in 
+                # some way. Check for it.
+                if re.match("[A-Z0-9]+", uniprot_id):
+                    return uniprot_id
         except Exception as e:
             print("Exception in Ensembl ID -> UniProt ID function:")
             print(e)
             traceback.print_exc()
             exit()
-        
+        # Should that fail, go and look it up from UniProt's servers
         try:
             url = "http://rest.ensembl.org/xrefs/id/" + ensembl_id + "?content-type=application/json"
             print("Looking up uniprot ID for ensembl ID " + ensembl_id)
@@ -2807,7 +2739,11 @@ class Downloader(QThread):
         try:
             df = self.id_lookup_table[self.id_lookup_table['UniProt ID(supplied by UniProt)'] == uniprot_id]
             if len(df):
-                return str(df['Ensembl Gene ID'].tolist()[0])
+                ensembl_id = str(df['Ensembl Gene ID'].tolist()[0]).strip()
+                # There may be cases where a record exists but no actual value is supplied, or the value is incorrect in 
+                # some way. Check for it.
+                if re.match("ENSG[0-9]{11}", ensembl_id):
+                    return ensembl_id
         except Exception as e:
             print("Exception in UniProt ID -> Ensembl ID function:")
             print(e)
@@ -2819,13 +2755,17 @@ class Downloader(QThread):
         try:
             df = self.id_lookup_table[self.id_lookup_table['UniProt ID(supplied by UniProt)'] == uniprot_id]
             if len(df):
-                return str(df['Approved Symbol'].tolist()[0])
+                gene_name = str(df['Approved Symbol'].tolist()[0]).strip()
+                # There may be cases where a record exists but no actual value is supplied, or the value is incorrect in 
+                # some way. Check for it.
+                if re.match("[a-zA-Z0-9]+", gene_name):
+                    return gene_name
         except Exception as e:
             print("Exception in HGNC Name -> UniProt ID function:")
             print(e)
             traceback.print_exc()
             exit()
-        
+        # Should that fail, go and look it up from UniProt's servers
         try:
             url = "http://www.uniprot.org/uniprot/?query=accession:" + uniprot_id + "+AND+organism:" + \
                   self.organism + "&sort=score&format=tab"
@@ -2870,17 +2810,17 @@ class Downloader(QThread):
                 print(ind)
                 self.emit_bucket_status(target)
                 safety = self.safety_bucket(target)
-                self.targets.set_value(index=ind, col='Safety bucket', value=safety)
+                self.targets.at[ind, 'Safety bucket'] = safety
                 druggability = self.druggability_bucket(target)
-                self.targets.set_value(index=ind, col='SM Druggability bucket', value=druggability)
+                self.targets.at[ind, 'SM Druggability bucket'] = druggability
                 feasibility = self.feasibility_bucket(target)
-                self.targets.set_value(index=ind, col='Feasibility bucket', value=feasibility)
+                self.targets.at[ind, 'Feasibility bucket'] = feasibility
                 antibodyability = self.antibodyability_bucket(target)
-                self.targets.set_value(index=ind, col='AB-ability bucket', value=antibodyability)
+                self.targets.at[ind, 'AB-ability bucket'] = antibodyability
                 new_modality = self.new_modality_bucket(target, druggability, antibodyability)
-                self.targets.set_value(index=ind, col='New modality bucket', value=new_modality)
+                self.targets.at[ind, 'New modality bucket'] = new_modality
                 tissue_engagement = self.tissue_engagement_bucket(target)
-                self.targets.set_value(index=ind, col='Tissue engagement bucket', value=tissue_engagement)
+                self.targets.at[ind, 'Tissue engagement bucket'] = tissue_engagement
         except Exception as e:
             print("Exception in bucketing function:")
             print(e)
@@ -3327,6 +3267,10 @@ class Downloader(QThread):
             # predicting secretion, this can be considered stronger evidence.
             if sum([target[i] for i in self.hpa_predicted_secreted_protein_subclasses if target[i]]) >= 2:
                 return True
+            # Also check if it's on record as localising to the Golgi apparatus with sufficient evidence.
+            if re.search("Golgi apparatus", str(target['Subcellular location summary'])) \
+                    and target['Subcellular location verification'] in ['approved', 'enhanced']:
+                return True
         
         def ecm_strong_evidence():
             if target['Extracellular matrix component']:
@@ -3334,28 +3278,34 @@ class Downloader(QThread):
         
         def membrane_strong_evidence():
             if target['Surfaceome membership (human)'] and target[
-                'Surfaceome membership confidence (human)'] == "1 - high confidence":
+                    'Surfaceome membership confidence (human)'] == "1 - high confidence":
                 return True
             # Also check if the HPA contains predictions of membrane proteins - if there is more than one method 
             # predicting membrane location, this can be considered stronger evidence.
             if sum([target[i] for i in self.hpa_predicted_membrane_protein_subclasses if target[i]]) >= 2:
                 return True
+            # Also check if it's on record as localising to the Golgi apparatus with sufficient evidence.
+            if re.search("plasma membrane", str(target['Subcellular location summary'])) \
+                    and target['Subcellular location verification'] in ['approved', 'enhanced']:
+                return True
         
         def secreted_ecm_membrane_weak_evidence():
             # Surfaceome membership (human): already checked for stronger evidence - this leaves only weaker evidence.
             # Surfaceome membership (mouse): this as a whole can be taken as weaker evidence.
+            # Subcellular location summary: already checked for stronger evidence
             if target['Surfaceome membership (human)'] or \
                     target['Surfaceome membership (mouse)'] or \
                     target['Predicted membrane protein'] or \
                     target['Predicted secreted protein'] or \
                     [target[i] for i in self.hpa_predicted_membrane_protein_subclasses if target[i]] or \
-                    [target[i] for i in self.hpa_predicted_secreted_protein_subclasses if target[i]]:  
+                    [target[i] for i in self.hpa_predicted_secreted_protein_subclasses if target[i]] or \
+                    re.search("plasma membrane|Golgi apparatus", str(target['Subcellular location summary'])):
                 # Add further conditions as data become available...
                 return True
         
         def cytoplasm():
             if target['Main subcellular locations']:
-                if re.search("cytosol", target['Main subcellular locations']):
+                if re.search("cytosol", str(target['Main subcellular locations'])):
                     return True
         
         def intracellular_compartment():
@@ -3380,7 +3330,7 @@ class Downloader(QThread):
     
     def new_modality_bucket(self, target, druggability, antibodyability):
         # Is this target a non-coding RNA? If so, it's the top priority for these modalities.
-        # For a full list of RNA classes found in this field, see https://uswest.ensembl.org/Help/Faq?id=468
+        # For a full list of RNA classes found in this field, see https://ensembl.org/Help/Faq?id=468
         if target['RNA class']:
             if "protein_coding" not in target['RNA class'].split(", "):
                 return 1
@@ -3459,11 +3409,13 @@ class PandasModel(QtCore.QAbstractTableModel):
     
     def data_type_cleanup(self, data):
         # Try to set some data types based on column values
+        data = data.copy()
         try:
             for col in data.columns.tolist():
                 if col in bool_cols:
                     # data[col] = data[col].astype(bool) 
-                    data[col] = data[col].map({1: True, 0: None})
+                    # data[col] = data[col].map({1: "True", 0: None})
+                    data[col] = ["True" if i else None for i in data[col].tolist()]
                 else:
                     # Does this not match non-numeric characters? If so, 0 characters may not be recognised by the sort.
                     # data[col] = data[col].map({'0': 0})  # Removes EVERYTHING
@@ -3586,11 +3538,11 @@ class PandasModel(QtCore.QAbstractTableModel):
         # Also, uncheck rows.
         try:
             for ind in self.get_matching_indices(series_nos):
-                self._data.set_value(index=ind.row(), col='Checked', value=check)
+                self._data.at[ind.row(), 'Checked'] = check
                 self.dataChanged.emit(ind, ind)
             # Should also set the original data, in case some restricting were to happen
             for ind in self.get_matching_indices_in_original_data(series_nos):
-                self.orig_data.set_value(index=ind.row(), col='Checked', value=check)
+                self.orig_data.at[ind.row(), 'Checked'] = check
         except Exception as e:
             print('Caught exception in worker thread:')
             traceback.print_exc()
@@ -3771,7 +3723,7 @@ class DataWindow(QDialog):
     def read_excel_file(self, excel):
         print("Reading excel file")
         self.data = pd.read_excel(excel,
-                                  sheetname=None,  # sheetname=None gets us all sheets, in a dict
+                                  sheet_name=None,  # sheet_name=None gets us all sheets, in a dict
                                   index_col=None,
                                   converters={'gene_symbol': str,
                                               'chromosome_name': str})
@@ -4399,8 +4351,10 @@ class Settings(QDialog):
         self.ui = settings.Ui_SettingsDialog()
         self.ui.setupUi(self)
         self.setWindowIcon(QIcon('logo2.png'))
-        self.ui.lineEdit_OpenTargets_appName.setText(api_keys["OpenTargets_appName"])
-        self.ui.lineEdit_OpenTargets_secret.setText(api_keys["OpenTargets_secret"])
+        if api_keys["OpenTargets_appName"]:
+            self.ui.lineEdit_OpenTargets_appName.setText(api_keys["OpenTargets_appName"])
+        if api_keys["OpenTargets_secret"]:
+            self.ui.lineEdit_OpenTargets_secret.setText(api_keys["OpenTargets_secret"])
         self.ui.lineEdit_FDA_key.setText(api_keys["FDA_key"])
         self.ui.lineEdit_biogrid_key.setText(api_keys["biogrid_key"])
         self.ui.lineEdit_seq_similarity.setText(str(api_keys['seq_similarity_threshold']))
@@ -4469,7 +4423,7 @@ class MainWindow(QMainWindow):
             self.outfile = None
             self.data_downloaded = True
             self.change_download_button_role()
-            self.data = pd.read_excel(self.infile, sheetname=None)
+            self.data = pd.read_excel(self.infile, sheet_name=None)
             if 'External data input' in self.data.keys():
                 # self.insert_targets_from_file(self.data['External data input'])
                 self.update_input_targets_model(self.data['External data input'])
