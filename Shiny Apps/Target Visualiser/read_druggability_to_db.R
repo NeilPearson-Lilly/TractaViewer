@@ -4,14 +4,14 @@ library(RSQLite)
 
 con = dbConnect(SQLite(), dbname="proteome.db")
 
-datadir = "C/Your/Data/Directory"
+datadir = "C:/Your/Data/Directory"
 
 datadir_files = list.files(datadir, pattern = "*.xlsx")
 
-for (fl in 1:5) {
+for (fl in datadir_files) {
   print(paste("READING FILE", fl))
-  sheets <- openxlsx::getSheetNames(fl)
-  xl <- lapply(sheets,openxlsx::read.xlsx,xlsxFile=fl)
+  sheets <- openxlsx::getSheetNames(paste0(datadir, fl))
+  xl <- lapply(sheets, openxlsx::read.xlsx, xlsxFile=paste0(datadir, fl))
   names(xl) <- sheets
   print("FILE READ")
   
