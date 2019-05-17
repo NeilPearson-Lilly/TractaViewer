@@ -11,6 +11,7 @@ from io import StringIO
 from os.path import expanduser, basename
 from pprint import pprint
 from time import sleep
+from functools import reduce
 
 import numpy as np
 import pandas as pd
@@ -49,7 +50,7 @@ pd.set_option('display.max_rows', None)
 # Useful variables
 disease_association_score_threshold = 0.5
 sheet_order = ['External data input', 'Basic information', 'Buckets', 'Bucket guide', 'GTEX', 'Barres mouse',
-               'Barres human', 'HPA Enrichment', 'Risk factors', 'Rare disease associations',
+               'Barres human', 'HPA Enrichment', 'Risk factors', 'Pathways', 'Rare disease associations',
                'Common disease associations', 'MGI mouse', 'CanSAR', 'Protein structures', 'Antitargets',
                'Core fitness', 'SM Druggability', 'AB-ability', 'Feasibility', 'Existing drugs', 'Drug toxicology',
                'Pharos', 'GWAS', 'Protein-protein interactions', 'Literature']
@@ -105,6 +106,10 @@ def flatten(ls):
         return flatten(first) + flatten(rest)
     else:
         return [ls]
+
+
+def deep_get(dictionary, keys, default=None):
+    return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else default, keys, dictionary)
 
 
 class Downloader(QThread):
@@ -172,6 +177,7 @@ class Downloader(QThread):
         self.antibodyabilitycols = []
         self.ab_loc_cols = []
         self.literaturecols = []
+        self.pathwayscols = []
         
         self.set_hardcoded_lists()
         # Set vars for some other data sources; we'll fill them on run (if they aren't set already)
@@ -191,6 +197,8 @@ class Downloader(QThread):
         self.gtex_scaler = StandardScaler()
         
         self.gwas_catalog = None
+        self.ebi_drugebility_data = None
+        self.ebi_drugebility_lookup = None
         self.core_fitness_data = None
         self.crispr_core_fitness_data = None
         self.ogee_essential_gene_data = None
@@ -208,6 +216,8 @@ class Downloader(QThread):
         self.mgi_phenotypes_to_top_level_classifications = {}
         self.identity_scores = None
         self.evalues = None
+        self.pathway_genes = {}
+        self.pathway_xml = {}
         
         # Make lookup tables that can be dynamically filled as we go, reducing repeated querying. 
         self.pharos_ligand_data_library = {}
@@ -228,6 +238,7 @@ class Downloader(QThread):
         self.verseda_secretome = None
         self.literature = None
         self.withdrawn_withdrawn = None
+        self.gnomad = None
         self.hpa_tox_lists = {}
         self.hpa_tox_tissues = ['Heart muscle', 'Liver', 'Kidney', 'Testis', 'Cervix, uterine', 'Ovary', 'Bone marrow',
                                 'Lymph node']
@@ -240,6 +251,7 @@ class Downloader(QThread):
         self.polygenic_disease_association_data = None
         self.existing_drug_data = None
         self.gwas_data = None
+        self.pathways = None
         
         # Set up connection objects
         self.mousemine = None
@@ -272,7 +284,8 @@ class Downloader(QThread):
             self.status.emit("Reading Barres lab data (human)...")
             print("Reading Barres lab data (human)...")
             self.barreslab_human = pd.read_excel("Data/BarresLab_TableS4-HumanMouseMasterFPKMList.xlsx",
-                                                 sheet_name="Human data only")
+                                                 sheet_name="Human data only",
+                                                 index_col = 0)
             self.bl_human_scaler.fit(self.barreslab_human.values[2:])
             # Column names on that need a bit of work:
             cols = []
@@ -290,8 +303,8 @@ class Downloader(QThread):
                 self.status.emit("Reading GTEx data...")
                 print("Reading GTEx data...")
                 # self.gtexdata = pd.read_table("Data/GTEx_Analysis_v6p_RNA-seq_RNA-SeQCv1.1.8_gene_median_rpkm.gct")
-                self.gtexdata = pd.read_table("Data/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.txt",
-                                              low_memory=False)
+                self.gtexdata = pd.read_csv("Data/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.txt",
+                                            low_memory=False, sep='\t')
                 self.gtex_scaler.fit(self.gtexdata[self.gtexdata.columns[2:]])
                 # GTEx data is organised by Ensembl ID, but it's got a version number on it. We're not interested in 
                 # that right now. Get rid of it so we can do direct string equality comparisons. They're way easier to 
@@ -321,8 +334,8 @@ class Downloader(QThread):
         # A fairly comprehensive basic ID lookup table, courtesy of GeneNames
         if not self.id_lookup_table:
             print("Reading ID lookup table...")
-            self.id_lookup_table = pd.read_table("Data/genenames_all_gene_ids_lookup_table.tsv",
-                                                 converters={i: str for i in range(0, 100)})  # Read all cols as strings
+            self.id_lookup_table = pd.read_csv("Data/genenames_all_gene_ids_lookup_table.tsv", sep='\t',
+                                               converters={i: str for i in range(0, 100)})  # Read all cols as strings
             # Not bad, but that leaves us with empty strings, which we don't want. Replace them with NaN
             self.id_lookup_table = self.id_lookup_table.replace('', np.nan)
         
@@ -336,8 +349,14 @@ class Downloader(QThread):
         if not self.gwas_catalog:
             print("Reading GWAS catalog...")
             self.status.emit("Reading GWAS Catalog data...")
-            self.gwas_catalog = pd.read_table("Data/gwas_catalog_v1.0.1-associations_e88_r2017-04-24.tsv",
-                                              low_memory=False)
+            self.gwas_catalog = pd.read_csv("Data/gwas_catalog_v1.0.1-associations_e88_r2017-04-24.tsv", sep='\t',
+                                            low_memory=False)
+        
+        # EBI DrugEBIlity data
+        if not self.ebi_drugebility_data:
+            print("Reading DrugEBIlity...")
+            self.ebi_drugebility_data = pd.read_csv("Data/domain_drugebility.txt", sep='\t')
+            self.ebi_drugebility_lookup = pd.read_csv("Data/domain_details.txt", sep='\t')
         
         # List of core fitness genes
         if not self.core_fitness_data:
@@ -349,8 +368,8 @@ class Downloader(QThread):
         if not self.crispr_core_fitness_data:
             print("Reading CRISPR screening core fitness data...")
             self.status.emit("Reading CRISPR-screened core fitness genes data...")
-            self.crispr_core_fitness_data = pd.read_table("Data/Human_core_essential_gene_set_v2.txt",
-                                                          names=["HGNC Name", "HGNC ID"])
+            self.crispr_core_fitness_data = pd.read_csv("Data/Human_core_essential_gene_set_v2.txt", sep='\t',
+                                                        names=["HGNC Name", "HGNC ID"])
         
         if not self.ogee_essential_gene_data:
             print("Reading OGEE...")
@@ -396,6 +415,18 @@ class Downloader(QThread):
             self.status.emit("Reading Human Protein Ontology data...")
             self.HPO_diseases_to_genes = pd.read_csv("Data/HPO_diseases_to_genes.txt", sep="\t",
                                                      skiprows=1, names=['Disease', 'EntrezID', 'HGNC Name'])
+        
+        if not self.pathway_genes:
+            print("Reading WikiPathway data...")
+            pathway_files = glob.glob("Data/wikipathways-20181010-gpml-Homo_sapiens/*.gpml")
+            for pfl in pathway_files:
+                pathway_name = re.sub('.gpml', '', basename(pfl))
+                # print(pathway_name)
+                with open(pfl, encoding="utf8") as fd:
+                    doc = xmltodict.parse(fd.read())
+                labels = [i['@TextLabel'] for i in doc['Pathway']['DataNode'] if i.get('@Type') == "GeneProduct"]
+                self.pathway_genes[pathway_name] = labels
+                self.pathway_xml[pathway_name] = doc
         
         # Read a list of tissues we've picked out as being likely toxicity indicators from the Human Protein Atlas.
         # We can now auto-populate some lists that will help us keep this organised as desired.
@@ -463,7 +494,7 @@ class Downloader(QThread):
         # that will have to be accessed differently. 
         if not self.dgidb_interactions:
             print("Reading DGIdb data...")
-            self.dgidb_interactions = pd.read_table("Data/DGIdb_interactions.tsv")
+            self.dgidb_interactions = pd.read_csv("Data/DGIdb_interactions.tsv", sep='\t')
         if not self.chembl_interactions:
             print("Reading ChEMBL interactions data...")
             self.chembl_interactions = pd.read_csv("Data/chembl_drugtargets_named-18_13_46_02.csv",
@@ -498,6 +529,11 @@ class Downloader(QThread):
             print("Reading WITHDRAWN database data...")
             self.withdrawn_withdrawn = pd.read_csv("Data/withdrawn_withdrawn_compounds.csv")
         
+        # Read Gnomad data
+        if not self.gnomad:
+            print("Reading Gnomad database data...")
+            self.gnomad = pd.read_csv("Data/gnomad.v2.1.1.lof_metrics.by_gene.txt", sep='\t')
+        
         # We can now get Jackson lab mouse phenotype data, but it's organised in a form that is incompatible with the 
         # existing targets table. (Multiple lines per gene, basically - and no human reader-friendly means of 
         # reshaping it). Consequently, we have to create a new table, which we will deal with at the end. 
@@ -522,6 +558,8 @@ class Downloader(QThread):
         self.drug_tox_data = pd.DataFrame(columns=['series', 'GeneID', 'HGNC Name'])
         # And again for literature list
         self.literature = pd.DataFrame(columns=self.literaturecols)
+        # Pathways needs a sheet...
+        self.pathways = pd.DataFrame(columns=self.pathwayscols)
         
         # Set these up as empty frames. They're our output. 
         # Working frame - we'll be adding stuff primarily to this.
@@ -743,7 +781,8 @@ class Downloader(QThread):
                        'Assays', 'Antibodies', 'Affected pathway', 'Animal model', 'Genetic association', 'Known drug',
                        'Literature', 'Pharos literature', 'Rna expression', 'Somatic mutation',
                        'Safety bucket', 'SM Druggability bucket', 'Feasibility bucket', 'AB-ability bucket',
-                       'New modality bucket', 'Tissue engagement bucket'
+                       'New modality bucket', 'Tissue engagement bucket', 'gnomAD pLI', 'gnomAD o/e',
+                       'OpenTargets Ensemble', 'OpenTargets high quality compounds', 'Small molecule genome member'
                        ]
         self.basicinfocols = ['series', 'HGNC Name', 'GeneID', 'Approved Name', 'Previous Name', 'Previous Symbols',
                               'Synonyms', 'Uniprot ID', 'Entrez ID', 'Chromosome', 'Gene family', 'Gene family ID',
@@ -786,9 +825,11 @@ class Downloader(QThread):
         self.riskfactorcols = ['series', 'HGNC Name', 'GeneID',
                                'Phenotype risk score', 'Withdrawn drug ratio',
                                'Mutational cancer driver genes', 'COSMIC somatic mutations in cancer genes',
-                               'Housekeeping gene']
+                               'Housekeeping gene', 'gnomAD pLI', 'gnomAD o/e']
+        self.pathwayscols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'Pathway name', 'Pathway description']
         self.diseasecols = ['series', 'HGNC Name', 'GeneID', 'Uniprot ID', 'OpenTargets query', 'Approved Name',
-                            'Source', 'Disease name', 'Disease ID', 'Association score', 'Genetic association']
+                            'Source', 'Disease name', 'Therapeutic areas', 'Disease ID', 'Association score',
+                            'Genetic association', 'Direct association']
         self.jacksonlabcols = ['series', 'HGNC Name', 'GeneID', 'Approved name', 'Input', 'Input Type',
                                'MGI Gene/Marker ID', 'Mouse associated gene symbol', 'Feature type', 'MP ID', 'Term',
                                'Top-level phenotype', 'Description']
@@ -799,14 +840,15 @@ class Downloader(QThread):
                                 'CRISPR-screened core fitness gene', 'OGEE human essential gene']
         self.druggabilitycols = ['series', 'HGNC Name', 'GeneID', 'DrugEBIlity query',
                                  # 'Consensus', 'LY druggability',
-                                 'EBI Tractable', 'EBI Druggable', 'EBI Ensemble',
+                                 'EBI Tractable', 'EBI Druggable', 'EBI Ensemble', 'OpenTargets Ensemble',
                                  # 'Top Druggable Domain Ensemble',
-                                 'Domain ID', 'PDB', 'Is protein',
+                                 'Domain ID', 'PDB', 'Is protein', 'Small molecule genome member',
                                  # 'Druggable class', 'Pharos', 'ChEMBL drug', 'ChEMBL ligand',
                                  'Ligand', 'Endogenous ligand', 'Main location', 'Top level protein classes',
                                  'Second level protein classes',
                                  'Third level protein classes', 'Membrane proteins predicted by MDM',
                                  'GPCRHMM predicted membrane proteins', '# TM segments',
+                                 'OpenTargets high quality compounds',
                                  # 'Predicted secreted proteins'
                                  'Has withdrawn drug', 'Withdrawn drug list'
                                  ]
@@ -907,10 +949,15 @@ class Downloader(QThread):
                 print("location")
                 self.get_location_data(ind, target, displayname)
                 
+                # gnomAD
+                print("gnomad")
+                self.get_gnomad_data(ind, target, displayname)
+                
                 # Druggability. 
                 print("drugebility")
-                if self.drugebility_is_online:
-                    self.get_druggability_data(ind, target, displayname)
+                # if self.drugebility_is_online:
+                #     self.get_druggability_data(ind, target, displayname)
+                self.get_ebi_drugebility(ind, target, displayname)
                 
                 # canSAR
                 print("canSAR")
@@ -923,6 +970,10 @@ class Downloader(QThread):
                 # Anti-targets
                 print("anti-targets")
                 self.get_antitargets(ind, target, displayname)
+                
+                # WikiPathways
+                print("pathways")
+                self.get_pathways_data(ind, target, displayname)
                 
                 # Is this gene in the core fitness gene list?
                 print("core fitness")
@@ -1173,7 +1224,7 @@ class Downloader(QThread):
             if gene_family_id not in self.gene_family_data:
                 url = "https://www.genenames.org/cgi-bin/genefamilies/set/" + gene_family_id + "/download/" + \
                       self.gene_family_query_level
-                self.gene_family_data[gene_family_id] = pd.read_table(url)
+                self.gene_family_data[gene_family_id] = pd.read_csv(url, sep='\t')
         except ParserError as pe:
             print("Parser error; get to the bottom of this.")
             print(pe)
@@ -1209,8 +1260,8 @@ class Downloader(QThread):
                          'mmusculus_homolog_ensembl_gene']
                 response = self.biomart_dataset.search({'filters': {'ensembl_gene_id': target['GeneID']},
                                                         'attributes': attrs})
-                biomrt = pd.read_table(StringIO("\n".join([i.decode('utf-8') for i in response.iter_lines()])),
-                                       names=attrs)
+                biomrt = pd.read_csv(StringIO("\n".join([i.decode('utf-8') for i in response.iter_lines()])), sep='\t',
+                                     names=attrs)
                 # Great; that now needs to be written into appropriate columns. 
                 # Make these lists unique. We seem to get duplicates quite often.
                 flylist = [str(i) for i in uniq(biomrt['dmelanogaster_homolog_associated_gene_name'].dropna().tolist())]
@@ -1253,8 +1304,8 @@ class Downloader(QThread):
                 attrs = ['transcript_biotype']
                 response = self.biomart_dataset.search({'filters': {'ensembl_gene_id': target['GeneID']},
                                                         'attributes': attrs})
-                rna = pd.read_table(StringIO("\n".join([i.decode('utf-8') for i in response.iter_lines()])),
-                                    names=attrs)
+                rna = pd.read_csv(StringIO("\n".join([i.decode('utf-8') for i in response.iter_lines()])), sep='\t',
+                                  names=attrs)
                 if pd.isnull(target['RNA class']) and rna['transcript_biotype'].tolist():
                     self.targets.at[ind, 'RNA class'] = ", ".join(rna['transcript_biotype'].tolist())
             
@@ -1509,7 +1560,36 @@ class Downloader(QThread):
                 loc_conf = self.locationdata.loc[self.locationdata[mtch] == target[srch]]['Reliability'].values[0]
                 location = self.locationdata.loc[self.locationdata[mtch] == target[srch]][loc_conf].values[0]
                 self.targets.at[ind, 'Main location'] = str(location) + " (" + str(loc_conf) + ")"
-    
+
+    def get_ebi_drugebility(self, ind, target, displayname):
+        # A replacement for the previous hacked-together web scraper thing for EBI's DrugEBIlity. 
+        # This is now fairly straightforward because, thankfully, they hae released the underlying data!
+        # Unfortunately they've done that because the service is shutting down.
+        try:
+            self.emit_download_status(target, displayname, "DrugEBIlity")
+            self.targets.at[ind, 'DrugEBIlity query'] = target['Uniprot ID']
+            tuid = target['Uniprot ID']
+            pxs = self.ebi_drugebility_lookup[self.ebi_drugebility_lookup['ACCESSION'] == tuid]['PX_NUMBER'].tolist()
+            df = self.ebi_drugebility_data[self.ebi_drugebility_data['PX_NUMBER'].isin(pxs)]
+            # druggable = df[df['DRUGGABLE'] == 1]
+            druggable = df.sort_values(by=["DRUGGABLE", "TRACTABLE", "ENSEMBLE"], ascending=False)
+            if len(druggable) > 0:
+                returnable_data = {'DrugEBIlity query': tuid,
+                                   'EBI Tractable': druggable['TRACTABLE'].iloc[0],
+                                   'EBI Druggable': druggable['DRUGGABLE'].iloc[0],
+                                   'EBI Ensemble': druggable['ENSEMBLE'].iloc[0],
+                                   'Domain ID': druggable['PX_NUMBER'].iloc[0],
+                                   'PDB': druggable['PDB_CODE'].iloc[0]}
+                self.drugebility_data_for_uniprot_ids[tuid] = returnable_data
+                if returnable_data['EBI Druggable'] > 0.8:
+                    self.druggable_count += 1
+                for field in returnable_data:
+                    self.targets.at[ind, field] = returnable_data[field]
+        except Exception as e:
+            print("Exception in DrugEBIlity function:")
+            print(e)
+            traceback.print_exc()
+
     def get_druggability_data(self, ind, target, displayname):
         self.emit_download_status(target, displayname, "DrugEBIlity")
         self.targets.at[ind, 'DrugEBIlity query'] = target['Uniprot ID']
@@ -1609,6 +1689,40 @@ class Downloader(QThread):
             print(e)
             traceback.print_exc()
             exit("NOPEING OUT")
+    
+    def get_pathways_data(self, ind, target, displayname):
+        try:
+            if target['HGNC Name']:
+                self.emit_download_status(target, displayname, "WikiPathways")
+                pw = pd.DataFrame(columns=self.pathwayscols)
+                pwlist = [i for i in self.pathway_genes if target['HGNC Name'] in self.pathway_genes[i]]
+                # pwlist = [i for i in pwlist if i in self.pathway_xml]
+                pw['Pathway name'] = pwlist
+                # pathway_desc = []
+                # for xml in [self.pathway_xml[j] for j in pwlist]:
+                #     if xml.get('Pathway'):
+                #         if xml['Pathway'].get('Biopax'):
+                #             if xml['Pathway']['Biopax'].get('bp:PublicationXref'):
+                #                 
+                #     pathway_desc.append(xml['Pathway']['Biopax']['bp:PublicationXref']['bp:TITLE']['#text'])
+                
+                # pathway_desc = [
+                #     i['Pathway']['Biopax']['bp:PublicationXref']['bp:TITLE']['#text'] if i.get('Pathway').get(
+                #         'Biopax').get('bp:PublicationXref').get('bp:TITLE').get('#text') else None for i in
+                #         [self.pathway_xml[j] for j in pwlist]]
+                
+                xmlpath = ['Pathway', 'Biopax', 'bp:PublicationXref', 'bp:TITLE', '#text']
+                pathway_desc = [deep_get(i, xmlpath) for i in [self.pathway_xml[j] for j in pwlist]]
+                
+                pw['Pathway description'] = pathway_desc
+                for i in self.pathwayscols[:4]:
+                    pw[i] = target[i]
+                self.pathways = self.pathways.append(pw, ignore_index=True)
+        except Exception as e:
+            print("Exception in pathways function:")
+            print(e)
+            traceback.print_exc()
+            exit()
     
     def get_core_fitness_data(self, ind, target, displayname):
         # Simple - check if a gene falls into any of these lists of core/essential genes. 
@@ -1931,6 +2045,7 @@ class Downloader(QThread):
     def get_disease_association_data(self, ind, target, displayname):
         # Use OpenTargets to get an absolute wealth of useful info. 
         try:
+            
             if target['GeneID'] not in [None, np.nan, 'nan']:
                 print(1)
                 disease_found = False
@@ -1954,20 +2069,24 @@ class Downloader(QThread):
                                            'Disease name': assoc.get('disease').get('efo_info').get(
                                                'label') or 'Unnamed disease',
                                            'Disease ID': assoc.get('disease').get('id') or 'Unknown',
+                                           'Therapeutic areas': ", ".join(
+                                               assoc.get('disease').get('efo_info').get('therapeutic_area').get(
+                                                   'labels')) or None,
                                            'Association score': assoc.get('association_score').get('overall') or 0,
                                            "Genetic association": assoc.get("association_score").get('datatypes').get(
-                                               'genetic_association') or 0}
+                                               'genetic_association') or 0,
+                                           'Direct association': True if assoc['is_direct'] else None}
                             
-                            if float(new_dis_row['Genetic association']) >= disease_association_score_threshold and \
-                                    assoc['is_direct']:
+                            # if float(new_dis_row['Genetic association']) >= disease_association_score_threshold and \
+                            #         assoc['is_direct']:
                                 # self.disease_association_data = self.disease_association_data.append(new_dis_row,
                                 #                                                                      ignore_index=True)
-                                if re.match('Orphanet_', new_dis_row['Disease ID']):
-                                    monogenic = monogenic.append(new_dis_row, ignore_index=True)
-                                else:
-                                    polygenic = polygenic.append(new_dis_row, ignore_index=True)
-                                
-                                disease_found = True
+                            # This was previously part of the above conditional block
+                            if re.match('Orphanet_', new_dis_row['Disease ID']):
+                                monogenic = monogenic.append(new_dis_row, ignore_index=True)
+                            else:
+                                polygenic = polygenic.append(new_dis_row, ignore_index=True)
+                            disease_found = True
                             
                             if evidence_types:
                                 for i in assoc['evidence_count']['datatypes']:
@@ -1975,6 +2094,16 @@ class Downloader(QThread):
                             else:
                                 evidence_types = {i: assoc['evidence_count']['datatypes'][i] for i in
                                                   assoc['evidence_count']['datatypes']}
+                            
+                            # OpenTargets gives us a few stats concerning this too now!
+                            if assoc.get('target'):
+                                self.targets.at[ind, "OpenTargets Ensemble"] = assoc.get('target').get(
+                                    'tractability').get('smallmolecule').get('ensemble')
+                                self.targets.at[ind, "OpenTargets high quality compounds"] = assoc.get('target').get(
+                                    'tractability').get('smallmolecule').get('high_quality_compounds')
+                                self.targets.at[ind, "Small molecule genome member"] = assoc.get('target').get(
+                                    'tractability').get('smallmolecule').get('small_molecule_genome_member')
+                            
                         self.opentargets_datatypes[target['GeneID']] = evidence_types
                         for i in evidence_types:
                             self.targets.at[ind, re.sub("_", " ", i).capitalize()] = evidence_types[i]
@@ -2231,6 +2360,23 @@ class Downloader(QThread):
             sleep(10)
             self.get_drug_safety_data(ind, target, displayname)
     
+    def get_gnomad_data(self, ind, target, displayname):
+        # Collect a couple of stats from the gnomAD database.
+        try:
+            if target['HGNC Name']:
+                # self.status.emit("Downloading data for target " + displayname + "... (Drug safety warnings)")
+                self.emit_download_status(target, displayname, "gnomAD")
+                gn = self.gnomad[self.gnomad['gene'] == target['HGNC Name']].sort_values(by=['pLI'], ascending=False).iloc[0]
+                self.targets.at[ind, 'gnomAD pLI'] = gn['pLI']
+                self.targets.at[ind, 'gnomAD o/e'] = gn['oe_lof']
+        except Exception as e:
+            print("Exception in gnomAD data function:")
+            print(e)
+            traceback.print_exc()
+            print("Retrying in 10 seconds...")
+            sleep(10)
+            self.get_drug_safety_data(ind, target, displayname)
+    
     def get_gwas_data(self, ind, target, displayname):
         # Look up gene in two different GWAS experiment libraries.
         try:
@@ -2474,9 +2620,13 @@ class Downloader(QThread):
         print("hpa enrichment")
         sheets_by_name['HPA Enrichment'] = self.targets[
             self.hpaenrichmentcols + ["HPA " + i for i in hpa_all_tissues]]
-        # Disease associations sheet
+        # Risk factors sheet
         print("risk")
         sheets_by_name['Risk factors'] = self.targets[self.riskfactorcols].copy()
+        # WikiPathways sheet
+        print("pathways")
+        sheets_by_name['Pathways'] = self.pathways.copy()
+        # Disease associations sheet
         # Actually, this is WAY simpler:
         # Columns specified in order to set their printed order
         print("disease")

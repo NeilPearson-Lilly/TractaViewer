@@ -139,9 +139,11 @@ Aggregated data from multiple sources concerning indications of the suitability 
 | EBI Tractable | Is flagged as "tractable" in ChEMBL | EBI DrugEBIlity database |
 | EBI Druggable | Is flagged as "druggable" in ChEMBL | EBI DrugEBIlity database |
 | EBI Ensemble | Average score across a range of druggability assessments internal to the DrugEBIlity database | EBI DrugEBIlity database |
+| OpenTargets Ensemble | Average score across a range of druggability assessments, via OpenTargets | OpenTargets |
 | Domain ID | Most druggable domain ID according to DrugEBIlity assessment | EBI DrugEBIlity database |
 | PDB | Protein Data Bank ID of model used for above calculations | EBI DrugEBIlity database |
 | Is protein | Level of evidence indicating that locus is a protein-coding gene | UniProt |
+| Small molecule genome member | Membership in the known small molecule-druggable genome | OpenTargets |
 | Ligand | Number of known interacting ligands | IUPHAR |
 | Endogenous ligand | Number of known interacting endogenous ligands | IUPHAR |
 | Main location | Primary subcellular localisation | Human Protein Atlas |
@@ -150,6 +152,7 @@ Aggregated data from multiple sources concerning indications of the suitability 
 | Third level protein classes | Most specific level of hierarchical functional classification | Human Protein Atlas |
 | Membrane proteins predicted by MDM | Predicted to be a membrane protein by MDM method | Human Protein Atlas |
 | GPCRHMM predicted membrane proteins | Predicted to be a membrane protein by method focused on identifying GPCRs | Human Protein Atlas |
+| OpenTargets high quality compounds | Has active tool molecules, according to OpenTargets' criteria | OpenTargets |
 | # TM segments | Number of transmembrane segments in protein primary structure predicted by MDM | Human Protein Atlas |
 | Has withdrawn drug | Gene has drug known to act on it which has been withdrawn | WITHDRAWN database |
 | Withdrawn drug list | List of drugs acting on gene which have been withdrawn | WITHDRAWN database |
