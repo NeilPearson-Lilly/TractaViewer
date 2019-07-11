@@ -72,7 +72,9 @@ The source databases for each item of data in output files are listed and descri
 
 This project can be compiled into a binary executable using PyInstaller. The path to PyQt .dll libraries must be included, because they aren't included by default. The `--noconsole` flag removes the terminal window that would otherwise appear, causing the application to be viewed purely as a GUI tool to the user.
 
-```PyInstaller --path C:\Path\To\Python\Installation\Lib\site-packages\PyQt5\Qt\bin --clean --noconsole --onefile -i logo2.ico launch.py```
+```
+pyinstaller -y -F -w -i "logo2.ico" -p C:\Path\To\Python\Installation\Lib\site-packages\PyQt5\Qt\bin  "launch.py" 
+```
 
 Note that if compiling, data and image assets must be copied into the resulting application's root directory, in the same arrangement as present in this repository. 
 

@@ -13,11 +13,13 @@ from pprint import pprint
 from time import sleep
 from functools import reduce
 
+import numpy.core._multiarray_umath
 import numpy as np
 import pandas as pd
 import pweave
 import requests
 import xmltodict
+import PyQt5
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QItemSelectionModel, QVariant
 from PyQt5.QtGui import QPixmap, QIcon, QIntValidator
@@ -1360,7 +1362,7 @@ class Downloader(QThread):
                     # The NCBI assay search tries to do something clever here, but it actually makes things a bit more 
                     # difficult for us. When there is only one result from a search, it just redirects us straight to 
                     # the relevant PubChem link. When this happens, the returned text is explicitly html, not xml.
-                    if re.search("doctype html", response.text):
+                    if re.search("DOCTYPE html", response.text, re.IGNORECASE):
                         self.targets.at[ind, 'Assays'] = 1
                     else:
                         data = xmltodict.parse(response.text)
@@ -1563,16 +1565,13 @@ class Downloader(QThread):
 
     def get_ebi_drugebility(self, ind, target, displayname):
         # A replacement for the previous hacked-together web scraper thing for EBI's DrugEBIlity. 
-        # This is now fairly straightforward because, thankfully, they hae released the underlying data!
+        # This is now fairly straightforward because, thankfully, they have released the underlying data!
         # Unfortunately they've done that because the service is shutting down.
         try:
             self.emit_download_status(target, displayname, "DrugEBIlity")
             self.targets.at[ind, 'DrugEBIlity query'] = target['Uniprot ID']
             tuid = target['Uniprot ID']
-            pxs = self.ebi_drugebility_lookup[self.ebi_drugebility_lookup['ACCESSION'] == tuid]['PX_NUMBER'].tolist()
-            df = self.ebi_drugebility_data[self.ebi_drugebility_data['PX_NUMBER'].isin(pxs)]
-            # druggable = df[df['DRUGGABLE'] == 1]
-            druggable = df.sort_values(by=["DRUGGABLE", "TRACTABLE", "ENSEMBLE"], ascending=False)
+            druggable = self.query_ebi_drugebility_data(tuid)
             if len(druggable) > 0:
                 returnable_data = {'DrugEBIlity query': tuid,
                                    'EBI Tractable': druggable['TRACTABLE'].iloc[0],
@@ -1589,7 +1588,14 @@ class Downloader(QThread):
             print("Exception in DrugEBIlity function:")
             print(e)
             traceback.print_exc()
-
+    
+    def query_ebi_drugebility_data(self, tuid):
+        pxs = self.ebi_drugebility_lookup[self.ebi_drugebility_lookup['ACCESSION'] == tuid]['PX_NUMBER'].tolist()
+        df = self.ebi_drugebility_data[self.ebi_drugebility_data['PX_NUMBER'].isin(pxs)]
+        # druggable = df[df['DRUGGABLE'] == 1]
+        druggable = df.sort_values(by=["DRUGGABLE", "TRACTABLE", "ENSEMBLE"], ascending=False)
+        return druggable
+    
     def get_druggability_data(self, ind, target, displayname):
         self.emit_download_status(target, displayname, "DrugEBIlity")
         self.targets.at[ind, 'DrugEBIlity query'] = target['Uniprot ID']
@@ -2364,11 +2370,13 @@ class Downloader(QThread):
         # Collect a couple of stats from the gnomAD database.
         try:
             if target['HGNC Name']:
-                # self.status.emit("Downloading data for target " + displayname + "... (Drug safety warnings)")
-                self.emit_download_status(target, displayname, "gnomAD")
-                gn = self.gnomad[self.gnomad['gene'] == target['HGNC Name']].sort_values(by=['pLI'], ascending=False).iloc[0]
-                self.targets.at[ind, 'gnomAD pLI'] = gn['pLI']
-                self.targets.at[ind, 'gnomAD o/e'] = gn['oe_lof']
+                if target['HGNC Name'] in self.gnomad['gene'].tolist():
+                    # self.status.emit("Downloading data for target " + displayname + "... (Drug safety warnings)")
+                    self.emit_download_status(target, displayname, "gnomAD")
+                    gn = self.gnomad[self.gnomad['gene'] == target['HGNC Name']].sort_values(by=['pLI'],
+                                                                                             ascending=False).iloc[0]
+                    self.targets.at[ind, 'gnomAD pLI'] = gn['pLI']
+                    self.targets.at[ind, 'gnomAD o/e'] = gn['oe_lof']
         except Exception as e:
             print("Exception in gnomAD data function:")
             print(e)
@@ -3242,9 +3250,11 @@ class Downloader(QThread):
                     'number of 3d structure druggable'].any():
                     return True
                 # Should that fail to find anything, we can also check EBI's DrugEBIlity. 
-                drugebility = self.query_drugebility(uniprot_id)
-                if drugebility:
-                    if drugebility['EBI Druggable'] >= 0.8:
+                # drugebility = self.query_drugebility(uniprot_id)
+                drugebility = self.query_ebi_drugebility_data(uniprot_id)
+                if len(drugebility):
+                    # if drugebility['EBI Druggable'] >= 0.8:
+                    if len(drugebility[drugebility['DRUGGABLE'] >= 0.8]):
                         return True
         
         def homolog_has_structure(uniprot_id):
