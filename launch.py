@@ -12,6 +12,8 @@ from io import StringIO
 from pprint import pprint
 from time import sleep
 from functools import reduce
+import matplotlib
+matplotlib.use('agg')
 
 import numpy.core._multiarray_umath
 from numpy import nan
