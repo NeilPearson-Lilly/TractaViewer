@@ -3135,13 +3135,15 @@ class Downloader(QThread):
         
         def has_phase4_drug():
             drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
-            if 'Phase IV' in drugs['Max clinical phase'].tolist():
-                return True
+            if len(drugs):
+                if drugs['Max clinical phase'].max() >= 4:
+                    return True
         
         def has_phase3_drug():
             drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
-            if 'Phase III' in drugs['Max clinical phase'].tolist():
-                return True
+            if len(drugs):
+                if drugs['Max clinical phase'].max() >= 3:
+                    return True
         
         def has_existing_drug():
             drugs = self.existing_drug_data[self.existing_drug_data['HGNC Name'] == target['HGNC Name']]
