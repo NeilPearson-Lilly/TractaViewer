@@ -19,6 +19,7 @@ import numpy.core._multiarray_umath
 from numpy import nan
 from pandas import set_option, read_excel, read_csv, read_json, read_html, read_table, to_numeric, DataFrame, \
     isnull, concat
+from pandas.errors import ParserError, EmptyDataError
 from pweave import weave
 from requests import get, Session
 import xmltodict
@@ -1241,28 +1242,35 @@ class Downloader(QThread):
         # actually do that. 
         # IMPORTANT: Some genes can belong to more than one family. But I've dealt with that elsewhere.
         url = None
-        from pandas.errors import ParserError
-        try:
-            if gene_family_id not in self.gene_family_data:
-                url = "https://www.genenames.org/cgi-bin/genefamilies/set/" + gene_family_id + "/download/" + \
-                      self.gene_family_query_level
-                self.gene_family_data[gene_family_id] = read_csv(url, sep='\t')
-        except ParserError as pe:
-            print("Parser error; get to the bottom of this.")
-            print(pe)
-            print(url)
-            print(gene_family_id)
-            print(type(gene_family_id))
-            print_exc()
-            exit()
-        except Exception as e:
-            print("Exception in GeneNames gene family function:")
-            print(e)
-            print(url)
-            print_exc()
-            print("Retrying in 10 seconds...")
-            sleep(10)
-            self.get_protein_family_info(gene_family_id)
+        if gene_family_id:
+            try:
+                if gene_family_id not in self.gene_family_data:
+                    # url = "https://www.genenames.org/cgi-bin/genefamilies/set/" + gene_family_id + "/download/" + \
+                    #       self.gene_family_query_level
+                    url = "https://www.genenames.org/cgi-bin/genegroup/download?type=branch&id=" + gene_family_id
+                    print(url)
+                    pfdf = read_csv(url, sep='\t')
+                    self.gene_family_data[gene_family_id] = pfdf
+            except EmptyDataError as ede:
+                # Sometimes genenames just consistently doesn't want to give us any data, for whatever reason. 
+                # There's nothing I can do about it. Just work around it, and always check for data in my objs. 
+                pass
+            except ParserError as pe:
+                print("Parser error; get to the bottom of this.")
+                print(pe)
+                print(url)
+                print(gene_family_id)
+                print(type(gene_family_id))
+                print_exc()
+                exit()
+            except Exception as e:
+                print("Exception in GeneNames gene family function:")
+                print(e)
+                print(url)
+                print_exc()
+                print("Retrying in 10 seconds...")
+                sleep(10)
+                self.get_protein_family_info(gene_family_id)
     
     def get_biomart_annotations(self, ind, target, displayname):
         # Query BioMart for more advanced IDs, including homologs and some RNA stuff.
@@ -3262,13 +3270,14 @@ class Downloader(QThread):
         
         def has_druggable_protein_class(uniprot_id):
             # Similar to has_ligand, but looks at whether the target has a druggable class listed in Pharos.
+            pharos_data = None
             if uniprot_id in self.pharos_ligand_data_library:
-                if self.pharos_ligand_data_library.get(uniprot_id).get('ChEMBL ligand'):
-                    return True
+                pharos_data = self.pharos_ligand_data_library[uniprot_id]
             else:
                 pharos_data = self.download_pharos_drug_and_ligand_count(uniprot_id)
-                if pharos_data:
-                    if pharos_data.get('Druggable class'):
+            if pharos_data:
+                if pharos_data.get('Druggable class'):
+                    if pharos_data['Druggable class'] not in ['Non-IDG', 'non-IDG']:
                         return True
         
         def has_endogenous_ligand():
@@ -3310,9 +3319,22 @@ class Downloader(QThread):
                     if len(drugebility[drugebility['DRUGGABLE'] >= 0.8]):
                         return True
         
+        def has_druggable_homolog(uniprot_id):
+            print("Looking for homologs with structures:")
+            for hlog in self.get_homologs(uniprot_id):
+                print("\t|" + hlog + "|")
+                if has_structure(hlog):
+                    print("\t\t(has a structure!)")
+                if has_druggable_pocket(hlog):
+                    print("\t\t(has a druggable pocket!)")
+                if has_structure(hlog) and has_druggable_pocket(hlog):
+                    return True
+        
         def homolog_has_structure(uniprot_id):
             for hlog in self.get_homologs(uniprot_id):
+                print("\t|" + hlog + "|")
                 if has_structure(hlog):
+                    print("\t\t(has a structure!)")
                     return True
         
         def homolog_has_druggable_pocket(uniprot_id):
@@ -3320,33 +3342,39 @@ class Downloader(QThread):
                 if has_druggable_pocket(hlog):
                     return True
         
-        def family_has_structure(gene_family_id):
-            for f in self.split_gene_families(gene_family_id):
-                if self.gene_family_data[f].get('Approved Symbol'):  # All data outside of my control is just terrible
-                    family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
-                    if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)][
-                        'number of 3d structure'].any():
-                        return True
+        def get_other_gene_family_genes(name, gene_family_id):
+            # Expects a single ID, so you may have to use self.split_gene_families() first
+            family_genes = []
+            if gene_family_id in self.gene_family_data:  # All data outside of my control is just terrible
+                family_genes = [n for n in self.gene_family_data[gene_family_id]['Approved symbol'].tolist() if
+                                n != name]
+            return family_genes
         
-        def family_has_druggable_pocket(gene_family_id):
+        def family_has_structure(name, gene_family_id):
             for f in self.split_gene_families(gene_family_id):
-                family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
+                family_genes = get_other_gene_family_genes(name, f)
+                if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)][
+                    'number of 3d structure'].any():
+                    return True
+        
+        def family_has_druggable_pocket(name, gene_family_id):
+            for f in self.split_gene_families(gene_family_id):
+                family_genes = get_other_gene_family_genes(name, f)
                 if self.cansar_data[self.cansar_data['gene name'].isin(family_genes)][
                     'number of 3d structure druggable'].any():
                     return True
         
-        def family_has_ligand(gene_family_id):
+        def family_has_ligand(name, gene_family_id):
             for f in self.split_gene_families(gene_family_id):
-                if self.gene_family_data[f].get('Approved Symbol'):  # All data outside of my control is just terrible
-                    family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
-                    for genename in family_genes:
-                        uid = self.get_uniprot_id_for_gene_name(genename)
-                        if has_ligand(uid):
-                            return True
+                family_genes = get_other_gene_family_genes(name, f)
+                for genename in family_genes:
+                    uid = self.get_uniprot_id_for_gene_name(genename)
+                    if has_ligand(uid):
+                        return True
         
-        def family_has_high_activity_ligand(gene_family_id):
+        def family_has_high_activity_ligand(name, gene_family_id):
             for f in self.split_gene_families(gene_family_id):
-                family_genes = self.gene_family_data[f]['Approved Symbol'].tolist()
+                family_genes = get_other_gene_family_genes(name, f)
                 for genename in family_genes:
                     uid = self.get_uniprot_id_for_gene_name(genename)
                     if has_high_activity_ligand(uid):
@@ -3377,14 +3405,15 @@ class Downloader(QThread):
             if has_structure(uniprot_id):
                 if has_druggable_pocket(uniprot_id):
                     return 3
-            if homolog_has_structure(uniprot_id) and homolog_has_druggable_pocket(uniprot_id):
+            # if homolog_has_structure(uniprot_id) and homolog_has_druggable_pocket(uniprot_id):
+            if has_druggable_homolog(uniprot_id):
                 return 4
             if gene_family_id:
-                if family_has_structure(gene_family_id):
-                    if family_has_druggable_pocket(gene_family_id):
+                if family_has_structure(name, gene_family_id):
+                    if family_has_druggable_pocket(name, gene_family_id):
                         return 7
-                if family_has_ligand(gene_family_id):
-                    if family_has_high_activity_ligand(gene_family_id):
+                if family_has_ligand(name, gene_family_id):
+                    if family_has_high_activity_ligand(name, gene_family_id):
                         return 9
                     else:
                         return 10
@@ -3474,15 +3503,11 @@ class Downloader(QThread):
             # This appears to be based on several different means of identifying tags for secreted proteins from the
             # HPA, so we can consider it a reasonably strong indicator. See
             # https://www.proteinatlas.org/humanproteome/secretome 
-            if target['VerSeDa secretome membership']:
-                return True
+            # if target['VerSeDa secretome membership']:
+            #     return True
             # Also check if the HPA contains predictions of secreted proteins - if there is more than one method 
             # predicting secretion, this can be considered stronger evidence.
             if sum([target[i] for i in self.hpa_predicted_secreted_protein_subclasses if target[i]]) >= 2:
-                return True
-            # Also check if it's on record as localising to the Golgi apparatus with sufficient evidence.
-            if search("Golgi apparatus", str(target['Subcellular location summary'])) \
-                    and target['Subcellular location verification'] in ['approved', 'enhanced']:
                 return True
         
         def ecm_strong_evidence():
@@ -3498,9 +3523,10 @@ class Downloader(QThread):
             if sum([target[i] for i in self.hpa_predicted_membrane_protein_subclasses if target[i]]) >= 2:
                 return True
             # Also check if it's on record as localising to the Golgi apparatus with sufficient evidence.
-            if search("plasma membrane", str(target['Subcellular location summary'])) \
-                    and target['Subcellular location verification'] in ['approved', 'enhanced']:
-                return True
+                # No actually let's not do that.
+            # if search("plasma membrane", str(target['Subcellular location summary'])) \
+            #         and target['Subcellular location verification'] in ['approved', 'enhanced']:
+            #     return True
         
         def secreted_ecm_membrane_weak_evidence():
             # Surfaceome membership (human): already checked for stronger evidence - this leaves only weaker evidence.
@@ -3514,6 +3540,10 @@ class Downloader(QThread):
                     [target[i] for i in self.hpa_predicted_secreted_protein_subclasses if target[i]] or \
                     search("plasma membrane|Golgi apparatus", str(target['Subcellular location summary'])):
                 # Add further conditions as data become available...
+                return True
+            # Also check if it's on record as localising to the Golgi apparatus with sufficient evidence.
+            if search("Golgi apparatus", str(target['Subcellular location summary'])) \
+                    and target['Subcellular location verification'] in ['approved', 'enhanced']:
                 return True
         
         def cytoplasm():
